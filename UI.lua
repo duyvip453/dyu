@@ -10,8 +10,8 @@ local Window = MacLib:Window({
 	Keybind = Enum.KeyCode.RightControl,
 	AcrylicBlur = true,
 })
-Window:UpdateTitle(Porn hub)
-Window:UpdateSubtitle(by duy duy)
+Window:UpdateTitle("Porn hub")
+Window:UpdateSubtitle("by duy duy")
 local tabGroups = {
 	TabGroup1 = Window:TabGroup()
 }
