@@ -4,9 +4,9 @@ local Window = MacLib:Window({
 	Title = "Porn hub",
 	Subtitle = "duy duy",
 	Size = UDim2.fromOffset(868, 650),
-	DragStyle = 2,
+	DragStyle = 1,
 	DisabledWindowControls = {},
-	ShowUserInfo = false,
+	ShowUserInfo = true,
 	Keybind = Enum.KeyCode.RightControl,
 	AcrylicBlur = true,
 })
