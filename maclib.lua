@@ -5616,8 +5616,8 @@ end
 
 function MacLib:Demo()
 	local Window = MacLib:Window({
-		Title = "Maclib Demo",
-		Subtitle = "This is a subtitle.",
+		Title = "Porn hub",
+		Subtitle = "by duy duy",
 		Size = UDim2.fromOffset(868, 650),
 		DragStyle = 1,
 		DisabledWindowControls = {},
