@@ -1,8 +1,8 @@
 local MacLib = loadstring(game:HttpGet("https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt"))()
 
 local Window = MacLib:Window({
-	Title = "Maclib Demo",
-	Subtitle = "This is a subtitle.",
+	Title = "Porn hub",
+	Subtitle = "by duy duy",
 	Size = UDim2.fromOffset(868, 650),
 	DragStyle = 1,
 	DisabledWindowControls = {},
@@ -34,8 +34,6 @@ sections.FarmL:Toggle({
 	end,
 }, "Toggle")
 
-window::UpdateTitle("Porn hub")
-window:UpdateSubtitle("by duy duy")
 MacLib:SetFolder("Maclib")
 tabs.Settings:InsertConfigSection("Left")
 
