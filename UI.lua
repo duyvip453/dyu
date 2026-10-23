@@ -35,11 +35,4 @@ sections.FarmL:Toggle({
 }, "Toggle")
 
 MacLib:SetFolder("Maclib")
-tabs.Settings:InsertConfigSection("Left")
-
-Window.onUnloaded(function()
-	print("Unloaded!")
-end)
-
-tabs.Main:Select()
 MacLib:LoadAutoLoadConfig()
