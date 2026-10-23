@@ -24,15 +24,12 @@ local sections = {
 }
 
 sections.FarmL:Toggle({
-	Name = "Toggle",
+	Name = "inf pet speed",
 	Default = false,
 	Callback = function(value)
-		Window:Notify({
-			Title = Window.Settings.Title,
-			Description = (value and "Enabled " or "Disabled ") .. "Toggle"
-		})
-	end,
-}, "Toggle")
+    Scripts.infpetspeed(value)
+end
+		}, "infpetspeed")
 
 MacLib:SetFolder("Maclib")
 tabs.Settings:InsertConfigSection("Left")
