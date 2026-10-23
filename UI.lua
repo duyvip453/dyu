@@ -1,16 +1,3 @@
-local URL = "https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt"
-local MacLib = loadstring(game:HttpGet(URL))()
-
-local Window = MacLib:Window({
-	Title = "porn hub",
-	Subtitle = "duy duy",
-	Size = UDim2.fromOffset(868, 650),
-	DragStyle = 1,
-	DisabledWindowControls = {},
-	ShowUserInfo = true,
-	Keybind = Enum.KeyCode.RightControl,
-	AcrylicBlur = true,
-})
 
 local TabGroup = Window:TabGroup()
 
