@@ -1,8 +1,8 @@
 local MacLib = loadstring(game:HttpGet("https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt?v=" .. tick()))()
 
 local Window = MacLib:Window({
-	Title = "Porn hub",
-	Subtitle = "duy duy",
+	Title = "Maclib Demo",
+	Subtitle = "This is a subtitle.",
 	Size = UDim2.fromOffset(868, 650),
 	DragStyle = 1,
 	DisabledWindowControls = {},
@@ -10,7 +10,6 @@ local Window = MacLib:Window({
 	Keybind = Enum.KeyCode.RightControl,
 	AcrylicBlur = true,
 })
-
 local tabGroups = {
 	TabGroup1 = Window:TabGroup()
 }
