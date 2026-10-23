@@ -4,7 +4,7 @@ local Window = MacLib:Window({
 	Title = "Porn hub",
 	Subtitle = "by duy duy",
 	Size = UDim2.fromOffset(868, 650),
-	DragStyle = 2,
+	DragStyle = 1,
 	DisabledWindowControls = {},
 	ShowUserInfo = false,
 	Keybind = Enum.KeyCode.RightControl,
@@ -32,12 +32,3 @@ sections.FarmL:Toggle({
 end
 		}, "infpetspeed")
 
-MacLib:SetFolder("Maclib")
-tabs.Settings:InsertConfigSection("Left")
-
-Window.onUnloaded(function()
-	print("Unloaded!")
-end)
-
-tabs.Farm:Select()
-MacLib:LoadAutoLoadConfig()
