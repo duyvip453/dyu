@@ -1,7 +1,7 @@
 local MacLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/event/refs/heads/main/UI.lua"))()
 
 
-local Win = MacLib:Window({
+local Windơ = MacLib:Window({
     Title = "porn hub",
     Subtitle = "duyduy",
     Size = UDim2.fromOffset(600, 400),
@@ -12,7 +12,7 @@ local Win = MacLib:Window({
     DisabledWindowControls = {"Exit", "Minimize"}
 })
 
-local TabGroup = Win:TabGroup()
+local TabGroup = Windơ:TabGroup()
 
 local Farm = TabGroup:Tab({
   Name = "Farm"
