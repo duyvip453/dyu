@@ -1,27 +1,5 @@
-local Source = game:HttpGet("https://raw.githubusercontent.com/duyvip453/event/refs/heads/main/maclib.lua")
-local Chunk, Error = loadstring(Source)
+local MacLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/event/refs/heads/main/UI.lua"))()
 
-if not Chunk then
-    warn(Error)
-    return
-end
-
-local MacLib = Chunk()
-
-if MacLib == nil then
-    warn("MacLib trả về nil")
-    return
-end
-
-if type(MacLib) ~= "table" then
-    warn("MacLib không phải table")
-    return
-end
-
-if type(MacLib.Window) ~= "function" then
-    warn("Không tìm thấy hàm Window trong MacLib")
-    return
-end
 
 local Window = MacLib:Window({
     Title = "porn hub",
