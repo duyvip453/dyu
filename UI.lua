@@ -1,7 +1,5 @@
-local MacLib = loadstring(game:HttpGet(
-    "https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt"
-))()
-
+local URL = "https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt"
+local MacLib = loadstring(game:HttpGet(URL))()
 
 local Window = MacLib:Window({
 	Title = "porn hub",
