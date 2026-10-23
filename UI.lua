@@ -34,6 +34,8 @@ sections.FarmL:Toggle({
 	end,
 }, "Toggle")
 
+window::UpdateTitle("Porn hub")
+window:UpdateSubtitle("by duy duy")
 MacLib:SetFolder("Maclib")
 tabs.Settings:InsertConfigSection("Left")
 
