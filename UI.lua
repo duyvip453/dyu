@@ -32,8 +32,3 @@ sections.FarmL:Toggle({
 end
 		}, "infpetspeed")
 
-MacLib:SetFolder("Maclib")
-Window.onUnloaded(function()
-	print("Unloaded!")
-end)
-MacLib:LoadAutoLoadConfig()
