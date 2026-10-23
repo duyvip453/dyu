@@ -20,7 +20,7 @@ local tabs = {
 
 local sections = {
 	FarmL = tabs.Farm:Section({ Side = "Left" }),
-	FarmR = tabs.Farm:Section({ Side = "Left" })
+	FarmR = tabs.Farm:Section({ Side = "Right" })
 }
 
 sections.FarmL:Toggle({
