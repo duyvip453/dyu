@@ -15,7 +15,8 @@ local tabGroups = {
 }
 
 local tabs = {
-	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"})
+	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"}
+	Settings = tabGroups.TabGroup1:Tab({ Name = "Settings", Image = "rbxassetid://10734950309" }))
 }
 
 local sections = {
