@@ -22,4 +22,34 @@ local FarmR = Farm:Section({
     Side = "Right"
 })
 
-local 
+local scripts = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/event/refs/heads/main/farm.lua"))()
+FarmL:Toggle({
+    Name = "inf pet speed",
+    Default = false,
+    Callback = scripts.infpetspeed
+})
+FarmL:Toggle({
+    Name = "Auto tap",
+    Default = false,
+    Callback = scripts.autotap
+})
+FarmL:Toggle({
+    Name = "Fast farm",
+    Default = false,
+    Callback = scripts.fastfarn
+})
+FarmL:Toggle({
+    Name = "auto ultimate",
+    Default = false,
+    Callback = scripts.autoultimate
+})
+FarmR:Toggle({
+    Name = "update pet slot",
+    Default = false,
+    Callback = scripts.petslot
+})
+FarmR:Toggle({
+    Name = "update egg slot",
+    Default = false,
+    Callback = scripts.eggslot
+})
