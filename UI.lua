@@ -16,7 +16,7 @@ local tabGroups = {
 
 local tabs = {
 	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"}
-	Settings = tabGroups.TabGroup1:Tab({ Name = "Settings", Image = "rbxassetid://10734950309" }))
+	Settings = tabGroups.TabGroup1:Tab({ Name = "Settings"}))
 }
 
 local sections = {
@@ -32,3 +32,8 @@ sections.FarmL:Toggle({
 end
 		}, "infpetspeed")
 
+MacLib:SetFolder("Maclib")
+Window.onUnloaded(function()
+	print("Unloaded!")
+end)
+MacLib:LoadAutoLoadConfig()
