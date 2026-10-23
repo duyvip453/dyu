@@ -7,7 +7,8 @@ local Window = Maclib:Window({
     DragStyle = 1,
     ShowUserInfo = false,
     Keybind = Enum.KeyCode.RightControl,
-    AcrylicBlur = true
+    AcrylicBlur = true,
+    DisabledWindowControls = ("Exit", "Minimize")
 })
 
 local TabGroup = Window:TabGroup()
