@@ -4,14 +4,14 @@ local MacLib = loadstring(game:HttpGet(
 
 
 local Window = MacLib:Window({
-    Title = "porn hub",
-    Subtitle = "duyduy",
-    Size = UDim2.fromOffset(600, 400),
-    DragStyle = 1,
-    ShowUserInfo = false,
-    Keybind = Enum.KeyCode.RightControl,
-    AcrylicBlur = true,
-    DisabledWindowControls = {"Exit", "Minimize"}
+	Title = "porn hub",
+	Subtitle = "duy duy",
+	Size = UDim2.fromOffset(868, 650),
+	DragStyle = 1,
+	DisabledWindowControls = {},
+	ShowUserInfo = true,
+	Keybind = Enum.KeyCode.RightControl,
+	AcrylicBlur = true,
 })
 
 local TabGroup = Window:TabGroup()
