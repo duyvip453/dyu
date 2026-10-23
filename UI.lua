@@ -1,6 +1,6 @@
 local MacLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/event/refs/heads/main/maclib.lua"))()
 
-local Window = Maclib:Window({
+local Window = MacLib:Window({
     Title = "porn hub",
     Subtitle = "duyduy",
     Size = UDim2.fromOffset(600, 400),
