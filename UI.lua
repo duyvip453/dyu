@@ -1,4 +1,6 @@
-local MacLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/event/refs/heads/main/UI.lua"))()
+local MacLib = loadstring(game:HttpGet(
+    "https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt"
+))()
 
 
 local Window = MacLib:Window({
