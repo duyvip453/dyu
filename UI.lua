@@ -6,7 +6,7 @@ local Window = MacLib:Window({
 	Size = UDim2.fromOffset(868, 650),
 	DragStyle = 2,
 	DisabledWindowControls = {},
-	ShowUserInfo = true,
+	ShowUserInfo = false,
 	Keybind = Enum.KeyCode.RightControl,
 	AcrylicBlur = true,
 })
