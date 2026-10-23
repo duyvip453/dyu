@@ -16,7 +16,7 @@ local tabGroups = {
 }
 
 local tabs = {
-	Farm = tabGroups.TabGroup1:Tab({ Name = "Demo"})
+	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"})
 }
 
 local sections = {
