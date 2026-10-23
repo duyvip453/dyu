@@ -16,7 +16,6 @@ local tabGroups = {
 
 local tabs = {
 	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"}
-	Settings = tabGroups.TabGroup1:Tab({ Name = "Settings"}))
 }
 
 local sections = {
