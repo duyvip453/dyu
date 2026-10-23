@@ -39,5 +39,5 @@ Window.onUnloaded(function()
 	print("Unloaded!")
 end)
 
-tabs.Main:Select()
+tabs.Farm:Select()
 MacLib:LoadAutoLoadConfig()
