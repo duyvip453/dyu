@@ -24,7 +24,7 @@ local sections = {
 	FarmL2 = tabs.Farm:Section({ Side = "Left" }),
 	FarmR2 = tabs.Farm:Section({ Side = "Right" })
 }
-local Scripts = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/scripts.lua"))()
+local Scripts = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/farmm.lua"))()
 
 --farm trái ô 1
 sections.FarmL:Toggle({
