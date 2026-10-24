@@ -13,17 +13,23 @@ local Window = MacLib:Window({
 
 local tabGroups = {
 	TabGroup1 = Window:TabGroup()
+	TabGroup2 = Window:TabGroup()
 }
 
 local tabs = {
-	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"})
+	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"}),
+	Mail = tabGroups.TabGroup1:Tab({ Name = "Mail"})
+	
 }
 
 local sections = {
 	FarmL = tabs.Farm:Section({ Side = "Left" }),
 	FarmR = tabs.Farm:Section({ Side = "Right" }),
 	FarmL2 = tabs.Farm:Section({ Side = "Left" }),
-	FarmR2 = tabs.Farm:Section({ Side = "Right" })
+	FarmR2 = tabs.Farm:Section({ Side = "Right" }),
+
+	MailL = tabs.Mail:Section({ Side = "Left" }),
+	MailR = tabs.Mail:Section({ Side = "Left" })
 }
 local Scripts = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/farmm.lua"))()
 
@@ -97,3 +103,39 @@ sections.FarmR:Toggle({
     Scripts.autoupdatepetslot(value)
 end
 		}, "autoupdatepetslot")
+--end farm phải ô 1
+
+local MailScripts = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/Mail.lua"))()
+
+
+sections.MailL:Toggle({
+	Name = "Auto Claim Mail",
+	Default = false,
+	Callback = function(value)
+    Scripts.autoclaimmail(value)
+end
+		}, "autoclaimmail")
+
+local danhSachLoai = {}
+
+sections.MailR:Dropdown({
+    Name = "Type",
+	Placeholder = "typemail",
+    Options = {"Gargantuan", "Titanic", "Huge"},
+    Multi = true,
+    Callback = function(cacLoaiDaChon)
+        danhSachLoai = {}
+
+        for loai in pairs(cacLoaiDaChon) do
+            table.insert(danhSachLoai, tonumber(loai))
+        end
+    end
+}, "mailtype")
+
+sections.MailR:Toggle({
+	Name = "Auto Send Mail",
+	Default = false,
+	Callback = function(value)
+    MailScripts.autosendmail(value)
+end
+		}, "autosendmail")
