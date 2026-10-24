@@ -1,5 +1,14 @@
 local MacLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/maclib.lua"))()
 
+local env = (getgenv and getgenv()) or _G
+
+if env.DuyMacLibWindow then
+    pcall(function()
+        env.DuyMacLibWindow:Unload()
+    end)
+    env.DuyMacLibWindow = nil
+end
+
 local Window = MacLib:Window({
 	Title = "Porn hub",
 	Subtitle = "by duy duy",
@@ -10,6 +19,9 @@ local Window = MacLib:Window({
 	Keybind = Enum.KeyCode.RightControl,
 	AcrylicBlur = true,
 })
+
+env.DuyMacLibWindow = Window
+
 local tabGroups = {
 	TabGroup1 = Window:TabGroup()
 }
