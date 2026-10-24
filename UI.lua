@@ -81,7 +81,7 @@ end
 --end farm trái ô 2
 
 --farm phải ô 1
-sections.FarmR1:Toggle({
+sections.FarmR:Toggle({
 	Name = "Auto Update egg slot",
 	Default = false,
 	Callback = function(value)
@@ -89,7 +89,7 @@ sections.FarmR1:Toggle({
 end
 		}, "autoupdateeggslot")
 
-sections.FarmR1:Toggle({
+sections.FarmR:Toggle({
 	Name = "Auto Update pet slot",
 	Default = false,
 	Callback = function(value)
