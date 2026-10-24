@@ -15,14 +15,14 @@ local tabGroups = {
 }
 
 local tabs = {
-	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"}
+	Farm = tabGroups.TabGroup1:Tab({ Name = "Farm"})
 }
 
 local sections = {
 	FarmL = tabs.Farm:Section({ Side = "Left" }),
 	FarmR = tabs.Farm:Section({ Side = "Right" })
 }
-
+local Scripts = loadstring(game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/scripts.lua"))()
 sections.FarmL:Toggle({
 	Name = "inf pet speed",
 	Default = false,
