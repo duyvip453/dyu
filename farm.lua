@@ -8,7 +8,7 @@ local map = require(client.MapCmds)
 local zones = require(client.ZoneCmds)
 local breaks = require(client.BreakableCmds)
 local orb = require(client.OrbCmds.Orb)
-local tele = require(client.TeleportMapCmds)
+local zoneUtil = require(game:GetService("ReplicatedStorage").Library.Util.ZonesUtil)
 local orbDist = orb.CollectDistance
 local jobs = {}
 
@@ -83,7 +83,11 @@ features.FarmTeleToBestArea = {
     duy = function(on)
         run("area", on, 3, function()
             local id = zones.GetMaxOwnedZone()
-            if id then tele.TeleportZones(id, true) end
+            local char = player.Character
+            if not id or not char then return end
+
+            local cf = zoneUtil.GetTeleportPartLocation(id)
+            if cf then char:PivotTo(cf + Vector3.new(0, 3, 0)) end
         end)
     end,
 }
