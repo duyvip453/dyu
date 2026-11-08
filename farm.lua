@@ -104,8 +104,7 @@ features.FarmTeleToBestArea = {
             if not bounds then return end
 
             for _, part in ipairs(bounds:GetChildren()) do
-                if part.Name == "BREAK_ZONE" and part:IsA("BasePart")
-                    and part:GetAttribute("IsBossChest") ~= true then
+                if part.Name == "BREAK_ZONE" and part:IsA("BasePart") then
                     char:PivotTo(part.CFrame + Vector3.new(0, 4, 0))
                     break
                 end
