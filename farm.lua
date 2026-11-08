@@ -5,6 +5,8 @@ local originalSpeedMultiplier = playerPet.CalculateSpeedMultiplier
 local client = game:GetService("ReplicatedStorage").Library.Client
 local tele = require(client.TeleportMapCmds)
 local worlds = require(client.Parent.Util.WorldsUtil)
+local mapUtil = require(client.Parent.Util.MapUtil)
+local dir = require(client.Parent.Directory)
 local net = require(client.Network)
 local map = require(client.MapCmds)
 local zones = require(client.ZoneCmds)
@@ -85,12 +87,18 @@ features.FarmAutoCollectOrb = {
 features.FarmTeleToBestArea = {
     duy = function(on)
         run("area", on, 3, function()
-            local id, data = zones.GetMaxOwnedZone()
             local char = player.Character
-            if not id or not data or not char then return end
+            local world = worlds.GetWorldNumber()
+            if not char or not world then return end
 
-            local root = workspace:FindFirstChild("Map")
-            local area = root and root:FindFirstChild(data.ZoneNumber .. " | " .. id)
+            local best, num = nil, 0
+            for id, zone in pairs(dir.Zones) do
+                if zone.WorldNumber == world and zone.ZoneNumber > num and zones.Owns(id) then
+                    best, num = id, zone.ZoneNumber
+                end
+            end
+
+            local area = best and mapUtil.GetZone(best) or mapUtil.GetSpawnZone()
             local interact = area and area:FindFirstChild("INTERACT")
             local bounds = interact and interact:FindFirstChild("BREAK_ZONES")
             if not bounds then return end
