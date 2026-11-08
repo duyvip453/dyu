@@ -103,12 +103,20 @@ features.FarmTeleToBestArea = {
             local bounds = interact and interact:FindFirstChild("BREAK_ZONES")
             if not bounds then return end
 
+            local skip = world == 3 and num == 200
+                and Vector3.new(92.21322631835938, 0.3999999761581421, 72.61753845214844)
+            local main, maxSize = nil, 0
             for _, part in ipairs(bounds:GetChildren()) do
                 if part.Name == "BREAK_ZONE" and part:IsA("BasePart") then
-                    char:PivotTo(part.CFrame + Vector3.new(0, 4, 0))
-                    break
+                    local s = part.Size
+                    if skip and (s - skip).Magnitude < 0.001 then continue end
+                    local size = math.max(s.X * s.Y, s.X * s.Z, s.Y * s.Z)
+                    if size > maxSize then
+                        main, maxSize = part, size
+                    end
                 end
             end
+            if main then char:PivotTo(main.CFrame + Vector3.new(0, 4, 0)) end
         end)
     end,
 }
