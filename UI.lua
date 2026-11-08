@@ -1,5 +1,5 @@
 -- Dán URL Raw của file xử lý vào giữa hai dấu ngoặc kép.
-local featuresUrl = ""
+local featuresUrl = "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/farm.lua"
 assert(featuresUrl ~= "", "Bạn cần dán URL Raw của file xử lý vào featuresUrl.")
 local loadFeatures = assert(loadstring(game:HttpGet(featuresUrl)))
 local features = loadFeatures()
@@ -15,12 +15,12 @@ local window = Rayfield:CreateWindow({
     },
 })
 
-window:CreateTab({ name = "Thống kê" })
-local farm = window:CreateTab({ name = "Cày" })
-window:CreateTab({ name = "Sự kiện" })
-local mail = window:CreateTab({ name = "Thư" })
-local trading = window:CreateTab({ name = "Giao dịch" })
-window:CreateTab({ name = "Cài đặt" })
+window:CreateTab({ name = "Stats" })
+local farm = window:CreateTab({ name = "farm" })
+window:CreateTab({ name = "Event" })
+local mail = window:CreateTab({ name = "mail" })
+local trading = window:CreateTab({ name = "trading" })
+window:CreateTab({ name = "setting" })
 
 local function createToggle(tab, name, flag)
     tab:CreateToggle({
@@ -36,37 +36,37 @@ local function createToggle(tab, name, flag)
     })
 end
 
-createToggle(farm, "Tốc độ thú cưng vô hạn", "FarmInfinityPetSpeed")
-createToggle(farm, "Cày nhanh", "FarmFastFarm")
-createToggle(farm, "Tự động nhấn", "FarmAutoTap")
-createToggle(farm, "Dịch chuyển đến khu tốt nhất", "FarmTeleToBestArea")
-createToggle(farm, "Dịch chuyển đến thế giới tốt nhất", "FarmTeleToBestWorld")
-createToggle(farm, "Tự mua khu tiếp theo", "FarmAutoBuyNextArea")
+createToggle(farm, "inf pet speed", "FarmInfinityPetSpeed")
+createToggle(farm, "fast farm", "FarmFastFarm")
+createToggle(farm, "auto tap", "FarmAutoTap")
+createToggle(farm, "tele to best area", "FarmTeleToBestArea")
+createToggle(farm, "tele to best world", "FarmTeleToBestWorld")
+createToggle(farm, "auto buy next area", "FarmAutoBuyNextArea")
 
 createToggle(mail, "Tự nhận thư", "MailAutoClaim")
 mail:CreateInput({
-    name = "Tên người dùng",
-    flag = "MailUsername",
+    name = "User Name",
+    flag = "MailUserName",
     value = "",
-    placeholder = "Nhập tên người dùng",
+    placeholder = "...",
 })
 
 -- Các lựa chọn mẫu để thử lưu cấu hình. Thay bằng dữ liệu trong game khi có.
 mail:CreateDropdown({
-    name = "Loại vật phẩm",
-    flag = "MailItemClass",
-    options = { "Loại mẫu A", "Loại mẫu B" },
+    name = "Item Class",
+    flag = "ItemClass",
+    options = { "A", "B" },
     multiSelect = true,
     value = {},
 })
 mail:CreateDropdown({
-    name = "Tên vật phẩm",
-    flag = "MailItemName",
-    options = { "Vật phẩm mẫu A", "Vật phẩm mẫu B" },
+    name = "Item Name",
+    flag = "ItemName",
+    options = { "A", "B" },
     multiSelect = true,
     value = {},
 })
-createToggle(mail, "Tự gửi quà", "MailAutoGift")
+createToggle(mail, "auto gift", "MailAutoGift")
 
 local boothSnipe = trading:CreateGroup({ direction = "column" })
 boothSnipe:CreateSection({ name = "Săn món ở gian hàng" })
