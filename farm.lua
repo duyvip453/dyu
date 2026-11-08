@@ -3,6 +3,8 @@ local player = game:GetService("Players").LocalPlayer
 local playerPet = require(game:GetService("ReplicatedStorage").Library.Client.PlayerPet)
 local originalSpeedMultiplier = playerPet.CalculateSpeedMultiplier
 local client = game:GetService("ReplicatedStorage").Library.Client
+local tele = require(client.TeleportMapCmds)
+local worlds = require(client.Parent.Util.WorldsUtil)
 local net = require(client.Network)
 local map = require(client.MapCmds)
 local zones = require(client.ZoneCmds)
@@ -97,6 +99,23 @@ features.FarmTeleToBestArea = {
                 if part.Name == "BREAK_ZONE" and part:IsA("BasePart")
                     and part:GetAttribute("IsBossChest") ~= true then
                     char:PivotTo(part.CFrame + Vector3.new(0, 4, 0))
+                    break
+                end
+            end
+        end)
+    end,
+}
+
+-- Dịch chuyển tới world cao nhất đã mở.
+features.FarmTeleToBestWorld = {
+    duy = function(on)
+        run("world", on, 5, function()
+            local cur = worlds.GetWorldNumber()
+            if not cur then return end
+
+            for id = 4, cur + 1, -1 do
+                if tele.CanTeleportToWorldRaw(id) then
+                    net.Invoke("World" .. id .. "Teleport")
                     break
                 end
             end
