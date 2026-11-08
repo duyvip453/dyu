@@ -118,6 +118,10 @@ features.FarmTeleToBestArea = {
             local main, maxSize = nil, 0
             for _, part in ipairs(bounds:GetChildren()) do
                 if part.Name == "BREAK_ZONE" and part:IsA("BasePart") then
+                    if num == 210 then
+                        main = part
+                        break
+                    end
                     local s = part.Size
                     if skip and (s - skip).Magnitude < 0.001 then continue end
                     local size = math.max(s.X * s.Y, s.X * s.Z, s.Y * s.Z)
