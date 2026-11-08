@@ -1,8 +1,17 @@
--- Dán URL Raw của file xử lý vào giữa hai dấu ngoặc kép.
-local featuresUrl = "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/farm.lua"
-assert(featuresUrl ~= "", "Bạn cần dán URL Raw của file xử lý vào featuresUrl.")
-local loadFeatures = assert(loadstring(game:HttpGet(featuresUrl)))
-local features = loadFeatures()
+-- Thêm một URL Raw vào danh sách cho mỗi file xử lý mới.
+local urls = {
+    "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/farm.lua",
+    "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/rank.lua",
+    "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/automatic.lua",
+}
+
+local features = {}
+for _, url in ipairs(urls) do
+    local loadTab = assert(loadstring(game:HttpGet(url)))
+    for flag, feature in pairs(loadTab()) do
+        features[flag] = feature
+    end
+end
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local window = Rayfield:CreateWindow({
