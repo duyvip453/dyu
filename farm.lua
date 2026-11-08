@@ -25,7 +25,7 @@ local function run(key, on, delay, step)
             while true do
                 local ok, more = pcall(step)
                 if ok and more == false then break end
-                task.wait(delay)
+                task.wait(type(more) == "number" and more or delay)
             end
             jobs[key] = nil
         end)
@@ -86,6 +86,7 @@ features.FarmAutoCollectOrb = {
 
 features.FarmTeleToBestArea = {
     duy = function(on)
+        local lastId, retryAt
         run("area", on, 3, function()
             local char = player.Character
             local world = worlds.GetWorldNumber()
@@ -100,7 +101,16 @@ features.FarmTeleToBestArea = {
 
             local area = best and mapUtil.GetZone(best) or mapUtil.GetSpawnZone()
             local interact = area and area:FindFirstChild("INTERACT")
-            local bounds = interact and interact:FindFirstChild("BREAK_ZONES")
+            if not interact then
+                local now = os.clock()
+                if best and (best ~= lastId or now >= retryAt) then
+                    lastId, retryAt = best, now + 10
+                    pcall(tele.TeleportZones, best, true)
+                end
+                return 1
+            end
+
+            local bounds = interact:FindFirstChild("BREAK_ZONES")
             if not bounds then return end
 
             local skip = world == 3 and num == 200
