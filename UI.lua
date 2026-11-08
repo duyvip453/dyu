@@ -44,6 +44,10 @@ createToggle(farm, "tele to best world", "FarmTeleToBestWorld")
 createToggle(farm, "auto buy next area", "FarmAutoBuyNextArea")
 createToggle(farm, "Tự nhặt orb", "FarmAutoCollectOrb")
 
+farm:CreateSection({ name = "Nâng cấp slot" })
+createToggle(farm, "auto upd pet slot", "FarmAutoPetSlot")
+createToggle(farm, "auto upd egg slot", "FarmAutoEggSlot")
+
 createToggle(mail, "Tự nhận thư", "MailAutoClaim")
 mail:CreateInput({
     name = "User Name",
