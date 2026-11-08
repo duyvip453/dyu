@@ -42,6 +42,7 @@ createToggle(farm, "auto tap", "FarmAutoTap")
 createToggle(farm, "tele to best area", "FarmTeleToBestArea")
 createToggle(farm, "tele to best world", "FarmTeleToBestWorld")
 createToggle(farm, "auto buy next area", "FarmAutoBuyNextArea")
+createToggle(farm, "Tự nhặt orb", "FarmAutoCollectOrb")
 
 createToggle(mail, "Tự nhận thư", "MailAutoClaim")
 mail:CreateInput({
