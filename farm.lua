@@ -19,9 +19,11 @@ local function run(key, on, delay, step)
     if on then
         jobs[key] = task.defer(function()
             while true do
-                pcall(step)
+                local ok, more = pcall(step)
+                if ok and more == false then break end
                 task.wait(delay)
             end
+            jobs[key] = nil
         end)
     end
 end
@@ -92,6 +94,28 @@ features.FarmTeleToBestArea = {
                 char:PivotTo(CFrame.new(part.Position + Vector3.new(0, 4, 0)))
             end
         end)
+    end,
+}
+
+-- Mỗi lần bật, thử lần lượt các ID từ 1 đến 99.
+local function updSlot(key, on, remote)
+    local id = 0
+    run(key, on, 0.5, function()
+        id += 1
+        pcall(net.Invoke, remote, id)
+        return id < 99
+    end)
+end
+
+features.FarmAutoPetSlot = {
+    duy = function(on)
+        updSlot("petSlot", on, "EquipSlotsMachine_RequestPurchase")
+    end,
+}
+
+features.FarmAutoEggSlot = {
+    duy = function(on)
+        updSlot("eggSlot", on, "EggHatchSlotsMachine_RequestPurchase")
     end,
 }
 
