@@ -91,9 +91,14 @@ features.FarmTeleToBestArea = {
             local area = root and root:FindFirstChild(data.ZoneNumber .. " | " .. id)
             local interact = area and area:FindFirstChild("INTERACT")
             local bounds = interact and interact:FindFirstChild("BREAK_ZONES")
-            local part = bounds and bounds:FindFirstChild("BREAK_ZONE")
-            if part and part:IsA("BasePart") then
-                char:PivotTo(part.CFrame + Vector3.new(0, 4, 0))
+            if not bounds then return end
+
+            for _, part in ipairs(bounds:GetChildren()) do
+                if part.Name == "BREAK_ZONE" and part:IsA("BasePart")
+                    and part:GetAttribute("IsBossChest") ~= true then
+                    char:PivotTo(part.CFrame + Vector3.new(0, 4, 0))
+                    break
+                end
             end
         end)
     end,
