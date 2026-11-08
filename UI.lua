@@ -15,7 +15,7 @@ end
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local window = Rayfield:CreateWindow({
-    name = "Menu Roblox",
+    name = "Porn Hub",
     sidebarLayout = true,
     configuration = {
         autoSave = true,
