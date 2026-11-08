@@ -83,15 +83,17 @@ features.FarmAutoCollectOrb = {
 features.FarmTeleToBestArea = {
     duy = function(on)
         run("area", on, 3, function()
-            local id = zones.GetMaxOwnedZone()
+            local id, data = zones.GetMaxOwnedZone()
             local char = player.Character
-            if not id or not char then return end
+            if not id or not data or not char then return end
 
-            local things = workspace:FindFirstChild("__THINGS")
-            local ground = things and things:FindFirstChild("__FAKE_GROUND")
-            local part = ground and ground:FindFirstChild(id)
+            local root = workspace:FindFirstChild("Map")
+            local area = root and root:FindFirstChild(data.ZoneNumber .. " | " .. id)
+            local interact = area and area:FindFirstChild("INTERACT")
+            local bounds = interact and interact:FindFirstChild("BREAK_ZONES")
+            local part = bounds and bounds:FindFirstChild("BREAK_ZONE")
             if part and part:IsA("BasePart") then
-                char:PivotTo(CFrame.new(part.Position + Vector3.new(0, 4, 0)))
+                char:PivotTo(part.CFrame + Vector3.new(0, 4, 0))
             end
         end)
     end,
