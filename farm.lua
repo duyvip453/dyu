@@ -8,7 +8,6 @@ local map = require(client.MapCmds)
 local zones = require(client.ZoneCmds)
 local breaks = require(client.BreakableCmds)
 local orb = require(client.OrbCmds.Orb)
-local zoneUtil = require(game:GetService("ReplicatedStorage").Library.Util.ZonesUtil)
 local orbDist = orb.CollectDistance
 local jobs = {}
 
@@ -86,8 +85,12 @@ features.FarmTeleToBestArea = {
             local char = player.Character
             if not id or not char then return end
 
-            local cf = zoneUtil.GetTeleportPartLocation(id)
-            if cf then char:PivotTo(cf + Vector3.new(0, 3, 0)) end
+            local things = workspace:FindFirstChild("__THINGS")
+            local ground = things and things:FindFirstChild("__FAKE_GROUND")
+            local part = ground and ground:FindFirstChild(id)
+            if part and part:IsA("BasePart") then
+                char:PivotTo(CFrame.new(part.Position + Vector3.new(0, 4, 0)))
+            end
         end)
     end,
 }
