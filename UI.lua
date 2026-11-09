@@ -44,7 +44,7 @@ local function createToggle(tab, name, flag)
         callback = function(enabled)
             local feature = features[flag]
             if feature then
-                 feature.duy(enabled, features)
+                feature.duy(enabled, features)
             end
         end,
     })
@@ -106,3 +106,16 @@ createToggle(rank, "auto rank quest", "RankAutoQuest")
 createToggle(rank, "stats gui", "RankStatsGui")
 
 createToggle(automatic, "auto claim free gift", "AutoClaimFreeGift")
+
+automatic:CreateDropdown({
+    name = "Gifts",
+    flag = "AutoOpenGiftTypes",
+    options = { "Gift Bag", "Large Gift Bag", "Mini Chest" },
+    multiSelect = true,
+    value = {},
+    callback = function(values)
+        local feature = features.AutoOpenGifts
+        if feature then feature.setSelection(values) end
+    end,
+})
+createToggle(automatic, "auto open gifts", "AutoOpenGifts")
