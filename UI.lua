@@ -4,6 +4,7 @@ local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/rank.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/automatic.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/optimize.lua",
+    "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/mail.lua",
 }
 
 local features = {}
