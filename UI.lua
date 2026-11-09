@@ -3,6 +3,7 @@ local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/farm.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/rank.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/automatic.lua",
+    "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/optimize.lua",
 }
 
 local features = {}
@@ -15,7 +16,7 @@ end
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local window = Rayfield:CreateWindow({
-    name = "Porn Hub",
+    name = "Menu Roblox",
     sidebarLayout = true,
     configuration = {
         autoSave = true,
@@ -26,6 +27,7 @@ local window = Rayfield:CreateWindow({
 
 window:CreateTab({ name = "Stats" })
 local farm = window:CreateTab({ name = "farm" })
+local optimize = window:CreateTab({ name = "optimize" })
 window:CreateTab({ name = "Event" })
 local mail = window:CreateTab({ name = "mail" })
 local trading = window:CreateTab({ name = "trading" })
@@ -58,6 +60,13 @@ createToggle(farm, "auto buy next area", "FarmAutoBuyNextArea")
 farm:CreateSection({ name = "Nâng cấp slot" })
 createToggle(farm, "auto upd pet slot", "FarmAutoPetSlot")
 createToggle(farm, "auto upd egg slot", "FarmAutoEggSlot")
+
+optimize:CreateSection({ name = "Loot boxes" })
+createToggle(optimize, "disable loot boxes", "OptimizeDisableLootBoxes")
+optimize:CreateSection({ name = "Dropped objects" })
+createToggle(optimize, "disable objects", "OptimizeDisableObjects")
+optimize:CreateSection({ name = "Combined" })
+createToggle(optimize, "super optimize", "OptimizeSuper")
 
 createToggle(mail, "Tự nhận thư", "MailAutoClaim")
 mail:CreateInput({
