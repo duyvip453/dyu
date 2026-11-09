@@ -44,7 +44,7 @@ local function createToggle(tab, name, flag)
         callback = function(enabled)
             local feature = features[flag]
             if feature then
-                feature.duy(enabled)
+                 feature.duy(enabled, features)
             end
         end,
     })
