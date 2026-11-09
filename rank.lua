@@ -148,8 +148,8 @@ local function rankQuestList(goals)
     return list
 end
 
-local function selectQuest()
-    local list = rankQuestList(readGoals())
+local function selectQuest(goals)
+    local list = rankQuestList(goals)
     if #list == #questTiers then
         for _, quest in ipairs(list) do
             if quest.priority and quest.current < quest.target then return quest, false end
@@ -224,7 +224,7 @@ features.RankAutoQuest = {
             requestTravel(allFeatures, false)
 
             while true do
-                local quest, shouldWaitAtArea = selectQuest()
+                local quest, shouldWaitAtArea = selectQuest(readGoals())
                 local action = quest and questActions[quest.kind]
                 if action then
                     activeQuest = quest
@@ -541,9 +541,9 @@ features.RankStatsGui = {
         local accent = Color3.fromRGB(106, 212, 255)
         local rankLabel = statsLabel(background, 0.09, 0.14, 72, white)
         local rewardsLabel = statsLabel(background, 0.23, 0.07, 26, muted)
-        statsLabel(background, 0.34, 0.05, 22, accent).Text = "đang làm dmm"
+        statsLabel(background, 0.34, 0.05, 22, accent).Text = "QUEST ĐANG LÀM"
         local activeLabel = statsLabel(background, 0.40, 0.12, 32, white)
-        statsLabel(background, 0.57, 0.05, 22, accent).Text = "quest nè:"
+        statsLabel(background, 0.57, 0.05, 22, accent).Text = "NHIỆM VỤ HIỆN TẠI"
         local rows = {}
         for i = 1, #questTiers do
             rows[i] = statsLabel(background, 0.63 + (i - 1) * 0.07, 0.065, 23, white)
@@ -564,7 +564,7 @@ features.RankStatsGui = {
                 if current and goal and goal.UID == current.uid then
                     activeLabel.Text = ("%s\n%d/%d"):format(current.title, goal.Progress, goal.Amount)
                 else
-                    activeLabel.Text = questJob and "Đang chờ" or "Auto rank quest đang tắt"
+                    activeLabel.Text = questJob and "Đang chờ nhiệm vụ phù hợp" or "Auto rank quest đang tắt"
                 end
 
                 for index, label in ipairs(rows) do
