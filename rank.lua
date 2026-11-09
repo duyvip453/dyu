@@ -148,6 +148,7 @@ end
 -- Vòng điều phối. Chỉ một quest được chạy tại một thời điểm.
 local function runQuest(quest, action)
     local repeatCollect = quest.kind == "collectPotion" or quest.kind == "collectEnchant"
+    local collectInterval = quest.interval or 1
     local nextAttempt = 0
     local sentAtProgress
     local lastMessage
@@ -160,11 +161,22 @@ local function runQuest(quest, action)
             if os.clock() >= nextAttempt and goal.Progress ~= sentAtProgress then
                 quest.current, quest.target, quest.potionTier = goal.Progress, goal.Amount, goal.PotionTier
                 local ok, waitForProgress, message = pcall(action, quest)
-                nextAttempt = os.clock() + (quest.interval or 3)
                 if not ok then
                     message = tostring(waitForProgress)
                     waitForProgress = true
                 end
+                if repeatCollect and message then
+                    local reason = tostring(message):lower()
+                    if reason:find("too quickly", 1, true)
+                        or reason:find("cooldown", 1, true)
+                        or reason:find("too many requests", 1, true)
+                        or reason:match("wait%s+[%d.]+%s*second") then
+                        local seconds = tonumber(reason:match("([%d.]+)%s*second")) or 0
+                        collectInterval = math.max(seconds, math.min(collectInterval * 2, 30))
+                        message = ("%s (thử lại sau %g giây)"):format(tostring(message), collectInterval)
+                    end
+                end
+                nextAttempt = os.clock() + (repeatCollect and collectInterval or 3)
                 if message and message ~= lastMessage then
                     warn("[Rank quest] " .. quest.title .. ": " .. tostring(message))
                 end
