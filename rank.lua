@@ -147,6 +147,7 @@ end
 
 -- Vòng điều phối. Chỉ một quest được chạy tại một thời điểm.
 local function runQuest(quest, action)
+    local repeatCollect = quest.kind == "collectPotion" or quest.kind == "collectEnchant"
     local nextAttempt = 0
     local sentAtProgress
     local lastMessage
@@ -168,7 +169,9 @@ local function runQuest(quest, action)
                     warn("[Rank quest] " .. quest.title .. ": " .. tostring(message))
                 end
                 lastMessage = message
-                if waitForProgress then sentAtProgress = quest.current end
+                if waitForProgress and not repeatCollect then
+                    sentAtProgress = quest.current
+                end
             end
         end
         task.wait(0.25)
