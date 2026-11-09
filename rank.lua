@@ -161,7 +161,8 @@ end
 -- Vòng điều phối. Chỉ một quest được chạy tại một thời điểm.
 local function runQuest(quest, action)
     local repeatCollect = quest.kind == "collectPotion" or quest.kind == "collectEnchant"
-    local collectInterval = quest.interval or 1
+    local fastHatch = quest.kind == "eggs" or quest.kind == "legendary"
+    local actionInterval = fastHatch and 0 or (quest.interval or 3)
     local nextAttempt = 0
     local sentAtProgress
     local lastMessage
@@ -174,23 +175,24 @@ local function runQuest(quest, action)
             if os.clock() >= nextAttempt and goal.Progress ~= sentAtProgress then
                 quest.current, quest.target, quest.potionTier = goal.Progress, goal.Amount, goal.PotionTier
                 quest.potionId, quest.enchantId, quest.enchantTier = goal.PotionID, goal.EnchantID, goal.EnchantTier
-                local ok, waitForProgress, message = pcall(action, quest)
+                local ok, waitForProgress, message, retryDelay = pcall(action, quest)
                 if not ok then
                     message = tostring(waitForProgress)
                     waitForProgress = true
                 end
-                if repeatCollect and message then
+                if (repeatCollect or fastHatch) and message then
                     local reason = tostring(message):lower()
                     if reason:find("too quickly", 1, true)
                         or reason:find("cooldown", 1, true)
                         or reason:find("too many requests", 1, true)
                         or reason:match("wait%s+[%d.]+%s*second") then
                         local seconds = tonumber(reason:match("([%d.]+)%s*second")) or 0
-                        collectInterval = math.max(seconds, math.min(collectInterval * 2, 30))
-                        message = ("%s (thử lại sau %g giây)"):format(tostring(message), collectInterval)
+                        actionInterval = math.max(seconds, math.min(math.max(1, actionInterval * 2), 30))
+                        waitForProgress = false
+                        message = ("%s (thử lại sau %g giây)"):format(tostring(message), actionInterval)
                     end
                 end
-                nextAttempt = os.clock() + (repeatCollect and collectInterval or 3)
+                nextAttempt = os.clock() + math.max(actionInterval, retryDelay or 0)
                 if message and message ~= lastMessage then
                     warn("[Rank quest] " .. quest.title .. ": " .. tostring(message))
                 end
@@ -200,7 +202,7 @@ local function runQuest(quest, action)
                 end
             end
         end
-        task.wait(0.25)
+        task.wait(fastHatch and 0 or 0.25)
     end
 end
 
@@ -384,22 +386,22 @@ function questActions.collectEnchant()
 end
 
 -- Mở trứng ở đúng điểm. Legendary có thể cần nhiều lượt trước khi tăng tiến độ.
-local function hatch(eggId, position, waitForQuestProgress)
-    if not goToPosition(position) then return false end
+local function hatch(eggId, position, remaining)
+    if not goToPosition(position) then return false, nil, 0.25 end
     if not save.Get() then return false end
     local count = eggs.GetMaxHatch(dir.Eggs[eggId])
     if not count or count < 1 then return false, "Không đọc được số slot mở trứng" end
     local success, reason = eggs.RequestPurchase(eggId, count)
     if not success then return true, reason or "Game từ chối mở trứng" end
-    return waitForQuestProgress
+    return remaining ~= nil and remaining <= count
 end
 
-function questActions.eggs()
-    return hatch("Hollow Egg", hollowPosition, true)
+function questActions.eggs(quest)
+    return hatch("Hollow Egg", hollowPosition, quest.target - quest.current)
 end
 
 function questActions.legendary()
-    return hatch("Veilroot Egg", veilrootPosition, false)
+    return hatch("Veilroot Egg", veilrootPosition)
 end
 
 -- Đổi Wisp Griffin theo tỷ lệ 10:1. Mỗi lần gọi máy dùng UID của một stack.
@@ -418,7 +420,7 @@ end
 function questActions.makeGolden(quest)
     local remaining = quest.target - quest.current
     local uid, batch, capacity = petStock(0)
-    if capacity < remaining then return hatch("Hollow Egg", hollowPosition, false) end
+    if capacity < remaining then return hatch("Hollow Egg", hollowPosition) end
     return invokeMachine("GoldMachine_Activate", uid, math.min(batch, remaining))
 end
 
@@ -432,7 +434,7 @@ function questActions.makeRainbow(quest)
 
     local normalUid, normalBatch, goldenCapacity = petStock(0)
     local goldenNeeded = quest.goldenToMake or remaining * 10
-    if goldenCapacity < goldenNeeded then return hatch("Hollow Egg", hollowPosition, false) end
+    if goldenCapacity < goldenNeeded then return hatch("Hollow Egg", hollowPosition) end
 
     local count = math.min(normalBatch, goldenNeeded)
     local success, reason = net.Invoke("GoldMachine_Activate", normalUid, count)
