@@ -1,3 +1,11 @@
+-- Launcher có thể truyền cấu hình riêng cho lần chạy này.
+local environment = type(getgenv) == "function" and getgenv() or _G
+local launchConfig = environment.RobloxHubConfig
+environment.RobloxHubConfig = nil
+if type(launchConfig) ~= "table" then launchConfig = nil end
+local launchToggles = launchConfig and type(launchConfig.toggles) == "table" and launchConfig.toggles or {}
+local startupActions = {}
+
 -- Thêm một URL Raw vào danh sách cho mỗi file xử lý mới.
 local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/farm.lua",
@@ -20,8 +28,8 @@ local window = Rayfield:CreateWindow({
     name = "Menu Roblox",
     sidebarLayout = true,
     configuration = {
-        autoSave = true,
-        autoLoad = true,
+        autoSave = launchConfig == nil,
+        autoLoad = launchConfig == nil,
         fileName = "RobloxHubUI",
     },
 })
@@ -37,17 +45,23 @@ local automatic = window:CreateTab({ name = "automatic" })
 window:CreateTab({ name = "setting" })
 
 local function createToggle(tab, name, flag)
+    local initial = launchToggles[flag] == true
+    local applied = false
+    local function apply(enabled)
+        local feature = features[flag]
+        if feature and (not launchConfig or applied ~= enabled) then
+            applied = enabled
+            feature.duy(enabled, features)
+        end
+    end
+
     tab:CreateToggle({
         name = name,
         flag = flag,
-        value = false,
-        callback = function(enabled)
-            local feature = features[flag]
-            if feature then
-                feature.duy(enabled, features)
-            end
-        end,
+        value = initial,
+        callback = apply,
     })
+    if initial then table.insert(startupActions, function() apply(true) end) end
 end
 
 createToggle(farm, "inf pet speed", "FarmInfinityPetSpeed")
@@ -107,15 +121,27 @@ createToggle(rank, "stats gui", "RankStatsGui")
 
 createToggle(automatic, "auto claim free gift", "AutoClaimFreeGift")
 
+local giftOptions = { "Gift Bag", "Large Gift Bag", "Mini Chest" }
+local initialGifts = {}
+if launchConfig and type(launchConfig.gifts) == "table" then
+    for _, id in ipairs(giftOptions) do
+        if table.find(launchConfig.gifts, id) then table.insert(initialGifts, id) end
+    end
+end
+local function setGiftSelection(values)
+    local feature = features.AutoOpenGifts
+    if feature then feature.setSelection(values) end
+end
+
 automatic:CreateDropdown({
     name = "Gifts",
     flag = "AutoOpenGiftTypes",
-    options = { "Gift Bag", "Large Gift Bag", "Mini Chest" },
+    options = giftOptions,
     multiSelect = true,
-    value = {},
-    callback = function(values)
-        local feature = features.AutoOpenGifts
-        if feature then feature.setSelection(values) end
-    end,
+    value = initialGifts,
+    callback = setGiftSelection,
 })
+if launchConfig then setGiftSelection(initialGifts) end
 createToggle(automatic, "auto open gifts", "AutoOpenGifts")
+
+for _, start in ipairs(startupActions) do start() end
