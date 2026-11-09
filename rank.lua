@@ -49,6 +49,7 @@ local veilrootPosition = Vector3.new(-14887.7763671875, 17.05313491821289, 2226.
 local questTiers = { "Easy", "Medium", "Hard", "Extreme" }
 local questActions = {}
 local questJob
+local activeQuest
 local travelFeatures = { "FarmTeleToBestArea", "FarmTeleToBestWorld" }
 
 -- Thứ tự trong bảng là priority: 1 được ưu tiên cao nhất.
@@ -125,24 +126,36 @@ local function readGoals()
     return goals
 end
 
-local function selectQuest()
-    local goals = readGoals()
-    local selected
+local function rankQuestList(goals)
+    local list = {}
     for stars in ipairs(questTiers) do
         local goal = goals[stars]
-        if not goal then return nil, true end
-        if goal.Progress < goal.Amount then
-            local title = questCmds.MakeTitle(goal)
-            local kind, priority, interval = classifyQuest(title or "")
-            if priority and (not selected or priority < selected.priority) then
-                selected = {
-                    stars = stars, uid = goal.UID, title = title,
-                    kind = kind, priority = priority, interval = interval,
-                }
-            end
+        if goal then
+            local title = questCmds.MakeTitle(goal) or ""
+            local kind, priority, interval = classifyQuest(title)
+            table.insert(list, {
+                stars = stars, uid = goal.UID, title = title,
+                kind = kind, priority = priority, interval = interval,
+                current = goal.Progress, target = goal.Amount,
+            })
         end
     end
-    return selected, selected == nil
+    table.sort(list, function(a, b)
+        local left, right = a.priority or math.huge, b.priority or math.huge
+        if left == right then return a.stars < b.stars end
+        return left < right
+    end)
+    return list
+end
+
+local function selectQuest()
+    local list = rankQuestList(readGoals())
+    if #list == #questTiers then
+        for _, quest in ipairs(list) do
+            if quest.priority and quest.current < quest.target then return quest, false end
+        end
+    end
+    return nil, true
 end
 
 -- Vòng điều phối. Chỉ một quest được chạy tại một thời điểm.
@@ -160,6 +173,7 @@ local function runQuest(quest, action)
 
             if os.clock() >= nextAttempt and goal.Progress ~= sentAtProgress then
                 quest.current, quest.target, quest.potionTier = goal.Progress, goal.Amount, goal.PotionTier
+                quest.potionId, quest.enchantId, quest.enchantTier = goal.PotionID, goal.EnchantID, goal.EnchantTier
                 local ok, waitForProgress, message = pcall(action, quest)
                 if not ok then
                     message = tostring(waitForProgress)
@@ -196,6 +210,7 @@ features.RankAutoQuest = {
             task.cancel(questJob)
             questJob = nil
         end
+        activeQuest = nil
         requestTravel(allFeatures, false)
         if not on then return end
 
@@ -212,7 +227,9 @@ features.RankAutoQuest = {
                 local quest, shouldWaitAtArea = selectQuest()
                 local action = quest and questActions[quest.kind]
                 if action then
+                    activeQuest = quest
                     runQuest(quest, action)
+                    activeQuest = nil
                     task.wait(4)
                 else
                     if shouldWaitAtArea then goToPosition(waitPosition) end
@@ -272,50 +289,98 @@ local function invokeMachine(remote, uid, count)
     return true
 end
 
-local function upgrade(quest, category, directory, requiredPerOutput, remote, collect)
-    local fromTier, toTier
-    if not collect then
-        fromTier = readRequiredTier(quest.title, "from%s+")
-        toTier = readRequiredTier(quest.title, "to%s+")
-        -- "Upgrade 2 Tier III potions" cũng mô tả cấp đầu ra.
-        if not fromTier and not toTier then toTier = readRequiredTier(quest.title, "") end
-        if quest.title:lower():find("tier", 1, true) and not (fromTier or toTier) then
-            return false, "Không đọc được cấp nâng cấp yêu cầu"
+local upgradeMachines = {
+    Potion = {
+        directory = dir.Potions,
+        requiredPerOutput = balancing.CalcPotionsPerTierRequired,
+        remote = "UpgradePotionsMachine_Activate",
+    },
+    Enchant = {
+        directory = dir.Enchants,
+        requiredPerOutput = balancing.CalcEnchantsPerTierRequired,
+        remote = "UpgradeEnchantsMachine_Activate",
+    },
+}
+
+local function upgradeStacks(category, inputTier, itemId)
+    local machine = upgradeMachines[category]
+    local stacks = {}
+    for uid, item in pairs(inventory(category)) do
+        local entry = machine.directory[item.id]
+        local tier = item.tn
+        if not item._lk and entry and tier and entry.MaxTier and tier < entry.MaxTier
+            and (not inputTier or tier == inputTier) and (not itemId or item.id == itemId) then
+            local required = machine.requiredPerOutput(tier)
+            if required and required > 0 then
+                local capacity = math.floor((item._am or 1) / required)
+                if capacity > 0 then table.insert(stacks, { uid = uid, tier = tier, capacity = capacity }) end
+            end
         end
     end
-    local uid, capacity = chooseStack(category, function(item)
-        local entry = directory[item.id]
-        local tier = item.tn
-        if not entry or not tier or not entry.MaxTier or tier >= entry.MaxTier
-            or (fromTier and tier ~= fromTier) or (toTier and tier + 1 ~= toTier) then
-            return 0
-        end
-        local required = requiredPerOutput(tier)
-        return required and required > 0 and math.floor((item._am or 1) / required) or 0
+    return stacks
+end
+
+-- Upgrade: gom đủ nguyên liệu cho toàn bộ số đầu ra còn thiếu trước khi gọi máy.
+local function upgradeExact(quest, category, goalTier, itemId)
+    local fromTier = readRequiredTier(quest.title, "from%s+")
+    local toTier = goalTier or readRequiredTier(quest.title, "to%s+")
+    if not fromTier and not toTier then toTier = readRequiredTier(quest.title, "") end
+    if quest.title:lower():find("tier", 1, true) and not (fromTier or toTier) then
+        return false, "Không đọc được cấp nâng cấp yêu cầu"
+    end
+    if toTier and fromTier and fromTier + 1 ~= toTier then
+        return false, "Cấp đầu vào và đầu ra không khớp"
+    end
+
+    local stacks = upgradeStacks(category, toTier and toTier - 1 or fromTier, itemId)
+    local count = quest.target - quest.current
+    local remote = upgradeMachines[category].remote
+    table.sort(stacks, function(a, b)
+        if a.tier == b.tier then return a.capacity > b.capacity end
+        return a.tier < b.tier
     end)
-    if not uid then return false, "Chưa đủ vật phẩm để nâng cấp" end
-    local count = collect and 1 or math.min(capacity, quest.target - quest.current)
-    return invokeMachine(remote, uid, count)
+    for _, stack in ipairs(stacks) do
+        if stack.capacity >= count then
+            local success, reason = net.Invoke(remote, stack.uid, count)
+            return success, not success and (reason or "Máy từ chối nâng cấp") or nil
+        end
+    end
+
+    local batch = {}
+    for _, stack in ipairs(stacks) do
+        local amount = math.min(stack.capacity, count)
+        batch[stack.uid] = amount
+        count -= amount
+        if count == 0 then
+            local success, reason = net.Invoke(remote .. "Bulk", batch)
+            return success, not success and (reason or "Máy từ chối nâng cấp theo lô") or nil
+        end
+    end
+    return false, "Chưa đủ nguyên liệu để nâng cấp đủ số lượng trong một lượt"
 end
 
 function questActions.upgradeEnchant(quest)
-    return upgrade(quest, "Enchant", dir.Enchants, balancing.CalcEnchantsPerTierRequired,
-        "UpgradeEnchantsMachine_Activate")
+    return upgradeExact(quest, "Enchant", quest.enchantTier, quest.enchantId)
 end
 
 function questActions.upgradePotion(quest)
-    return upgrade(quest, "Potion", dir.Potions, balancing.CalcPotionsPerTierRequired,
-        "UpgradePotionsMachine_Activate")
+    return upgradeExact(quest, "Potion", quest.potionTier, quest.potionId)
 end
 
-function questActions.collectPotion(quest)
-    return upgrade(quest, "Potion", dir.Potions, balancing.CalcPotionsPerTierRequired,
-        "UpgradePotionsMachine_Activate", true)
+-- Collect: chọn lại một stack ngẫu nhiên mỗi lượt và chỉ tạo một vật phẩm.
+local function collectByUpgrading(category)
+    local stacks = upgradeStacks(category)
+    if #stacks == 0 then return false, "Chưa có stack đủ nguyên liệu để Collect" end
+    local stack = stacks[math.random(#stacks)]
+    return invokeMachine(upgradeMachines[category].remote, stack.uid, 1)
 end
 
-function questActions.collectEnchant(quest)
-    return upgrade(quest, "Enchant", dir.Enchants, balancing.CalcEnchantsPerTierRequired,
-        "UpgradeEnchantsMachine_Activate", true)
+function questActions.collectPotion()
+    return collectByUpgrading("Potion")
+end
+
+function questActions.collectEnchant()
+    return collectByUpgrading("Enchant")
 end
 
 -- Mở trứng ở đúng điểm. Legendary có thể cần nhiều lượt trước khi tăng tiến độ.
@@ -403,5 +468,119 @@ end
 function questActions.luckyBlock()
     return summon(waitPosition, "Mini Lucky Block", "MiniLuckyBlock_Consume")
 end
+
+-- Stats GUI / Dữ liệu rank và danh sách quest dùng chung với bộ auto.
+local statsGui
+local statsJob
+
+local function rewardProgress(data)
+    local id = ranks.RankIDFromNumber(data.Rank)
+    local rank = id and dir.Ranks[id]
+    if not rank or not rank.Rewards then return "Đang tải phần thưởng…" end
+
+    local locked, claimable, required = 0, 0, 0
+    local redeemed = data.RedeemedRankRewards or {}
+    for index, reward in ipairs(rank.Rewards) do
+        required += reward.StarsRequired
+        if redeemed[tostring(index)] == nil then
+            if (data.RankStars or 0) < required then
+                locked += 1
+            else
+                claimable += 1
+            end
+        end
+    end
+    local line = ("%d reward còn lại để lên rank"):format(locked + claimable)
+    if claimable > 0 then line ..= ("  ·  %d có thể nhận ngay"):format(claimable) end
+    return line
+end
+
+local function statsLabel(parent, y, height, maxSize, color)
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Position = UDim2.fromScale(0.05, y)
+    label.Size = UDim2.fromScale(0.90, height)
+    label.Font = Enum.Font.GothamBold
+    label.TextColor3 = color
+    label.TextScaled = true
+    label.TextWrapped = true
+    label.Text = ""
+    label.Parent = parent
+
+    local constraint = Instance.new("UITextSizeConstraint")
+    constraint.MinTextSize = 1
+    constraint.MaxTextSize = maxSize
+    constraint.Parent = label
+    return label
+end
+
+features.RankStatsGui = {
+    duy = function(on)
+        if statsJob then task.cancel(statsJob); statsJob = nil end
+        if statsGui then statsGui:Destroy(); statsGui = nil end
+        if not on then return end
+
+        local playerGui = player:FindFirstChildOfClass("PlayerGui")
+        if not playerGui then return end
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "RankStatsOverlay"
+        gui.IgnoreGuiInset = true
+        gui.ScreenInsets = Enum.ScreenInsets.None
+        gui.ClipToDeviceSafeArea = false
+        gui.ResetOnSpawn = false
+        gui.DisplayOrder = 100
+
+        local background = Instance.new("Frame")
+        background.Size = UDim2.fromScale(1, 1)
+        background.BackgroundColor3 = Color3.new(0, 0, 0)
+        background.BorderSizePixel = 0
+        background.Parent = gui
+
+        local white = Color3.fromRGB(245, 245, 245)
+        local muted = Color3.fromRGB(176, 182, 194)
+        local accent = Color3.fromRGB(106, 212, 255)
+        local rankLabel = statsLabel(background, 0.09, 0.14, 72, white)
+        local rewardsLabel = statsLabel(background, 0.23, 0.07, 26, muted)
+        statsLabel(background, 0.34, 0.05, 22, accent).Text = "QUEST ĐANG LÀM"
+        local activeLabel = statsLabel(background, 0.40, 0.12, 32, white)
+        statsLabel(background, 0.57, 0.05, 22, accent).Text = "NHIỆM VỤ HIỆN TẠI"
+        local rows = {}
+        for i = 1, #questTiers do
+            rows[i] = statsLabel(background, 0.63 + (i - 1) * 0.07, 0.065, 23, white)
+        end
+
+        gui.Parent = playerGui
+        statsGui = gui
+        statsJob = task.defer(function()
+            while gui.Parent do
+                local data = save.Get()
+                local goals = readGoals()
+                local list = rankQuestList(goals)
+                rankLabel.Text = data and ("RANK %s"):format(tostring(data.Rank)) or "RANK …"
+                rewardsLabel.Text = data and rewardProgress(data) or "Đang tải dữ liệu rank…"
+
+                local current = activeQuest
+                local goal = current and goals[current.stars]
+                if current and goal and goal.UID == current.uid then
+                    activeLabel.Text = ("%s\n%d/%d"):format(current.title, goal.Progress, goal.Amount)
+                else
+                    activeLabel.Text = questJob and "Đang chờ nhiệm vụ phù hợp" or "Auto rank quest đang tắt"
+                end
+
+                for index, label in ipairs(rows) do
+                    local quest = list[index]
+                    if quest then
+                        label.Text = ("%s  ·  %s  ·  %d/%d"):format(
+                            questTiers[quest.stars], quest.title, quest.current, quest.target)
+                        label.TextColor3 = quest.priority and white or muted
+                    else
+                        label.Text = ""
+                    end
+                end
+                task.wait(0.5)
+            end
+        end)
+    end,
+}
 
 return features
