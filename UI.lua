@@ -25,7 +25,7 @@ end
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local window = Rayfield:CreateWindow({
-    name = "Menu Roblox",
+    name = "Porn hub",
     sidebarLayout = true,
     configuration = {
         autoSave = launchConfig == nil,
@@ -67,12 +67,12 @@ end
 createToggle(farm, "inf pet speed", "FarmInfinityPetSpeed")
 createToggle(farm, "fast farm", "FarmFastFarm")
 createToggle(farm, "auto tap", "FarmAutoTap")
-createToggle(farm, "Tự nhặt orb", "FarmAutoCollectOrb")
+createToggle(farm, "Auto claim orb, lootbox", "FarmAutoCollectOrb")
 createToggle(farm, "tele to best area", "FarmTeleToBestArea")
 createToggle(farm, "tele to best world", "FarmTeleToBestWorld")
 createToggle(farm, "auto buy next area", "FarmAutoBuyNextArea")
 
-farm:CreateSection({ name = "Nâng cấp slot" })
+farm:CreateSection({ name = "upd slot" })
 createToggle(farm, "auto upd pet slot", "FarmAutoPetSlot")
 createToggle(farm, "auto upd egg slot", "FarmAutoEggSlot")
 
@@ -83,7 +83,7 @@ createToggle(optimize, "disable objects", "OptimizeDisableObjects")
 optimize:CreateSection({ name = "Combined" })
 createToggle(optimize, "super optimize", "OptimizeSuper")
 
-createToggle(mail, "Tự nhận thư", "MailAutoClaim")
+createToggle(mail, "auto claim mail", "MailAutoClaim")
 mail:CreateInput({
     name = "User Name",
     flag = "MailUserName",
