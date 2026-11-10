@@ -5,7 +5,7 @@ local originalSpeedMultiplier = playerPet.CalculateSpeedMultiplier
 local client = game:GetService("ReplicatedStorage").Library.Client
 local tele = require(client.TeleportMapCmds)
 local worlds = require(client.Parent.Util.WorldsUtil)
-local mapUtil = require(client.Parent.Util.MapUtil)
+
 local dir = require(client.Parent.Directory)
 local net = require(client.Network)
 local map = require(client.MapCmds)
@@ -99,52 +99,47 @@ local function teleportFeature(setEnabled)
     }
 end
 
+-- Tọa độ cố định được quản lý riêng trong id area.lua.
+local areaData
+local areaDataWarning = false
+local function getAreaData()
+    if areaData then return areaData end
+    local ok, result = pcall(function()
+        local source = game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/id%20area.lua")
+        return assert(loadstring(source))()
+    end)
+    if ok and type(result) == "table" and type(result.Worlds) == "table" then
+        areaData = result
+        return areaData
+    end
+    if not areaDataWarning then
+        areaDataWarning = true
+        warn("[Auto Tele] Không tải được id area.lua; chờ tải lại.")
+    end
+end
+
 features.FarmTeleToBestArea = teleportFeature(function(on)
     run("area", on, 3, function()
         local char = player.Character
         local world = worlds.GetWorldNumber()
         if not char or not world then return end
+        local data = getAreaData()
+        local entry = data and data.Worlds[world]
+        if not entry or type(entry.MaxArea) ~= "number" then return end
 
-        local best, num = nil, 0
+        local best = 0
         for id, zone in pairs(dir.Zones) do
-            if zone.WorldNumber == world and zone.ZoneNumber > num and zones.Owns(id) then
-                best, num = id, zone.ZoneNumber
+            if zone.ZoneNumber > best and zones.Owns(id) then
+                best = zone.ZoneNumber
             end
         end
-
-        local area
-        if best then
-            area = mapUtil.GetZone(best)
-        else
-            area = mapUtil.GetSpawnZone()
+        if best == 0 then return end
+        local target = math.min(best, entry.MaxArea)
+        local position = entry.Areas[target]
+        -- Chưa điền tọa độ: chờ, không tự dò map hoặc teleport của game.
+        if typeof(position) == "CFrame" then
+            char:PivotTo(position)
         end
-        local interact = area and area:FindFirstChild("INTERACT")
-        if not interact then return 1 end
-
-        local bounds = interact:FindFirstChild("BREAK_ZONES")
-        if not bounds then return end
-
-        local skip = world == 3 and num == 200
-            and Vector3.new(92.21322631835938, 0.3999999761581421, 72.61753845214844)
-        local skipPosition = world == 1 and num == 1
-            and Vector3.new(214.122131, 24.4171562, -587.119263)
-        local main, maxSize = nil, 0
-        for _, part in ipairs(bounds:GetChildren()) do
-            if part.Name == "BREAK_ZONE" and part:IsA("BasePart") then
-                if skipPosition and (part.Position - skipPosition).Magnitude < 0.01 then continue end
-                if num == 210 then
-                    main = part
-                    break
-                end
-                local s = part.Size
-                if skip and (s - skip).Magnitude < 0.001 then continue end
-                local size = math.max(s.X * s.Y, s.X * s.Z, s.Y * s.Z)
-                if size > maxSize then
-                    main, maxSize = part, size
-                end
-            end
-        end
-        if main then char:PivotTo(main.CFrame + Vector3.new(0, 4, 0)) end
     end)
 end)
 
