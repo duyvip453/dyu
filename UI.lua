@@ -145,3 +145,17 @@ if launchConfig then setGiftSelection(initialGifts) end
 createToggle(automatic, "auto open gifts", "AutoOpenGifts")
 
 for _, start in ipairs(startupActions) do start() end
+if environment.RobloxHubAntiAfkJob then
+    pcall(task.cancel, environment.RobloxHubAntiAfkJob)
+end
+environment.RobloxHubAntiAfkJob = task.spawn(function()
+    local player = game:GetService("Players").LocalPlayer
+    while true do
+        task.wait(12 * 60)
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.Health > 0 then
+            humanoid.Jump = true
+        end
+    end
+end)
