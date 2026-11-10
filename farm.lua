@@ -101,20 +101,24 @@ end
 
 -- Tọa độ cố định được quản lý riêng trong id area.lua.
 local areaData
-local areaDataWarning = false
+local areaDataWarning
 local function getAreaData()
     if areaData then return areaData end
     local ok, result = pcall(function()
         local source = game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/id%20area.lua")
-        return assert(loadstring(source))()
+        source = source:gsub("^\239\187\191", "") -- Bỏ UTF-8 BOM nếu có.
+        local chunk, compileError = loadstring(source, "@id area.lua")
+        if not chunk then error("Lỗi cú pháp: " .. tostring(compileError), 0) end
+        return chunk()
     end)
     if ok and type(result) == "table" and type(result[1]) == "table" then
         areaData = result
         return areaData
     end
-    if not areaDataWarning then
-        areaDataWarning = true
-        warn("[Auto Tele] Không tải được id area.lua; chờ tải lại.")
+    local reason = ok and "File phải return bảng tọa độ theo world, ví dụ [1] = {...}." or tostring(result)
+    if areaDataWarning ~= reason then
+        areaDataWarning = reason
+        warn("[Auto Tele] id area.lua: " .. reason)
     end
 end
 
