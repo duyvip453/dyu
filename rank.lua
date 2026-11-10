@@ -113,7 +113,7 @@ local function goToPosition(position)
     return true
 end
 
--- Goals là nguồn của bốn ô HUD. UID giữ nguyên khi tiêu đề đổi theo tiến độ.
+-- Goals là nguồn các ô HUD. UID giữ nguyên khi tiêu đề đổi theo tiến độ.
 local function readGoals()
     local data = save.Get()
     local goals = {}
@@ -149,8 +149,13 @@ local function rankQuestList(goals)
 end
 
 local function selectQuest(goals)
+    -- Đọc lại rank mỗi lần chọn để tự chuyển từ 3 sang 4 quest khi lên rank 5.
+    local data = save.Get()
+    local rank = data and tonumber(data.Rank)
+    if not rank then return nil, true end
+    local requiredCount = rank < 5 and 3 or 4
     local list = rankQuestList(goals)
-    if #list == #questTiers then
+    if #list == requiredCount then
         for _, quest in ipairs(list) do
             if quest.priority and quest.current < quest.target then return quest, false end
         end
