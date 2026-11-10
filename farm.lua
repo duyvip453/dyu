@@ -167,9 +167,8 @@ end)
 local function updSlot(key, on, remote)
     local id = 0
     run(key, on, 0.5, function()
-        id += 1
+        id = id % 99 + 1
         pcall(net.Invoke, remote, id)
-        return id < 99
     end)
 end
 
