@@ -138,14 +138,8 @@ local function getTargetArea(world)
     return math.min(best, maxArea)
 end
 
--- Dùng area hiện tại do game xác định, không dùng khoảng cách tới điểm tele:
--- người chơi có thể đi lại trong cùng area mà không bị kéo về tâm.
-local function getCurrentArea()
-    local current = map.GetCurrentZone()
-    if current == nil then return end
-    local zone = type(current) == "table" and current or dir.Zones[current]
-    if zone then return zone.WorldNumber, zone.ZoneNumber end
-end
+-- Chỉ so X/Z; dung sai nhỏ tránh tele lại do sai số tọa độ.
+local areaXZTolerance = 0.1
 
 features.FarmTeleToBestArea = teleportFeature(function(on)
     run("area", on, 3, function()
@@ -155,11 +149,6 @@ features.FarmTeleToBestArea = teleportFeature(function(on)
         local target = getTargetArea(world)
         if not target then return end
 
-        local currentWorld, currentArea = getCurrentArea()
-        -- Chờ game xác định area khi đang tải map/respawn/chuyển world.
-        if not currentArea or currentWorld ~= world then return end
-        if currentArea == target then return end
-
         local data = getAreaData()
         local entry = data and data[world]
         if not entry then return end
@@ -168,8 +157,10 @@ features.FarmTeleToBestArea = teleportFeature(function(on)
         if type(position) == "table" and type(position[1]) == "number" and type(position[2]) == "number" and type(position[3]) == "number" then
             -- HttpGet có thể yield: kiểm tra lại trước khi dịch chuyển.
             if player.Character ~= char or worlds.GetWorldNumber() ~= world then return end
-            currentWorld, currentArea = getCurrentArea()
-            if currentWorld ~= world or not currentArea or currentArea == target then return end
+            if getTargetArea(world) ~= target then return end
+            local current = char:GetPivot().Position
+            if math.abs(current.X - position[1]) <= areaXZTolerance
+                and math.abs(current.Z - position[3]) <= areaXZTolerance then return end
             char:PivotTo(CFrame.new(position[1], position[2], position[3]))
         end
     end)
