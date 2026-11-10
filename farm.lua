@@ -100,7 +100,6 @@ local function teleportFeature(setEnabled)
 end
 
 features.FarmTeleToBestArea = teleportFeature(function(on)
-    local lastId, retryAt
     run("area", on, 3, function()
         local char = player.Character
         local world = worlds.GetWorldNumber()
@@ -113,16 +112,14 @@ features.FarmTeleToBestArea = teleportFeature(function(on)
             end
         end
 
-        local area = best and mapUtil.GetZone(best) or mapUtil.GetSpawnZone()
-        local interact = area and area:FindFirstChild("INTERACT")
-        if not interact then
-            local now = os.clock()
-            if best and (best ~= lastId or now >= retryAt) then
-                lastId, retryAt = best, now + 10
-                pcall(tele.TeleportZones, best, true)
-            end
-            return 1
+        local area
+        if best then
+            area = mapUtil.GetZone(best)
+        else
+            area = mapUtil.GetSpawnZone()
         end
+        local interact = area and area:FindFirstChild("INTERACT")
+        if not interact then return 1 end
 
         local bounds = interact:FindFirstChild("BREAK_ZONES")
         if not bounds then return end
