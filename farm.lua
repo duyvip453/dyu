@@ -108,7 +108,7 @@ local function getAreaData()
         local source = game:HttpGet("https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/id%20area.lua")
         return assert(loadstring(source))()
     end)
-    if ok and type(result) == "table" and type(result.Worlds) == "table" then
+    if ok and type(result) == "table" and type(result[1]) == "table" then
         areaData = result
         return areaData
     end
@@ -118,27 +118,55 @@ local function getAreaData()
     end
 end
 
+-- Area mục tiêu = best area đã mở, giới hạn theo world đang đứng.
+local function getTargetArea(world)
+    local best, maxArea = 0, 0
+    for id, zone in pairs(dir.Zones) do
+        if zone.WorldNumber == world then
+            maxArea = math.max(maxArea, zone.ZoneNumber)
+        end
+        if zone.ZoneNumber > best and zones.Owns(id) then
+            best = zone.ZoneNumber
+        end
+    end
+    if world == 1 then maxArea = math.min(maxArea, 99) end
+    if best == 0 or maxArea == 0 then return end
+    return math.min(best, maxArea)
+end
+
+-- Dùng area hiện tại do game xác định, không dùng khoảng cách tới điểm tele:
+-- người chơi có thể đi lại trong cùng area mà không bị kéo về tâm.
+local function getCurrentArea()
+    local current = map.GetCurrentZone()
+    if current == nil then return end
+    local zone = type(current) == "table" and current or dir.Zones[current]
+    if zone then return zone.WorldNumber, zone.ZoneNumber end
+end
+
 features.FarmTeleToBestArea = teleportFeature(function(on)
     run("area", on, 3, function()
         local char = player.Character
         local world = worlds.GetWorldNumber()
-        if not char or not world then return end
-        local data = getAreaData()
-        local entry = data and data.Worlds[world]
-        if not entry or type(entry.MaxArea) ~= "number" then return end
+        if not char or not char:FindFirstChild("HumanoidRootPart") or not world then return end
+        local target = getTargetArea(world)
+        if not target then return end
 
-        local best = 0
-        for id, zone in pairs(dir.Zones) do
-            if zone.ZoneNumber > best and zones.Owns(id) then
-                best = zone.ZoneNumber
-            end
-        end
-        if best == 0 then return end
-        local target = math.min(best, entry.MaxArea)
-        local position = entry.Areas[target]
+        local currentWorld, currentArea = getCurrentArea()
+        -- Chờ game xác định area khi đang tải map/respawn/chuyển world.
+        if not currentArea or currentWorld ~= world then return end
+        if currentArea == target then return end
+
+        local data = getAreaData()
+        local entry = data and data[world]
+        if not entry then return end
+        local position = entry[target]
         -- Chưa điền tọa độ: chờ, không tự dò map hoặc teleport của game.
-        if typeof(position) == "CFrame" then
-            char:PivotTo(position)
+        if type(position) == "table" and type(position[1]) == "number" and type(position[2]) == "number" and type(position[3]) == "number" then
+            -- HttpGet có thể yield: kiểm tra lại trước khi dịch chuyển.
+            if player.Character ~= char or worlds.GetWorldNumber() ~= world then return end
+            currentWorld, currentArea = getCurrentArea()
+            if currentWorld ~= world or not currentArea or currentArea == target then return end
+            char:PivotTo(CFrame.new(position[1], position[2], position[3]))
         end
     end)
 end)
