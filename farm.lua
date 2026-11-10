@@ -129,9 +129,12 @@ features.FarmTeleToBestArea = teleportFeature(function(on)
 
         local skip = world == 3 and num == 200
             and Vector3.new(92.21322631835938, 0.3999999761581421, 72.61753845214844)
+        local skipPosition = world == 1 and num == 1
+            and Vector3.new(214.122131, 24.4171562, -587.119263)
         local main, maxSize = nil, 0
         for _, part in ipairs(bounds:GetChildren()) do
             if part.Name == "BREAK_ZONE" and part:IsA("BasePart") then
+                if skipPosition and (part.Position - skipPosition).Magnitude < 0.01 then continue end
                 if num == 210 then
                     main = part
                     break
