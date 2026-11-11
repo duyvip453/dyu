@@ -179,7 +179,7 @@ local function runQuest(quest, action)
         if goal then
             if goal.UID ~= quest.uid or goal.Progress >= goal.Amount then return end
 
-            if os.clock() >= nextAttempt and (repeatSummon or goal.Progress ~= sentAtProgress) then
+            if os.clock() >= nextAttempt and (fastHatch or repeatSummon or goal.Progress ~= sentAtProgress) then
                 quest.current, quest.target, quest.potionTier = goal.Progress, goal.Amount, goal.PotionTier
                 quest.potionId, quest.enchantId, quest.enchantTier = goal.PotionID, goal.EnchantID, goal.EnchantTier
                 local ok, waitForProgress, message, retryDelay = pcall(action, quest)
@@ -187,7 +187,7 @@ local function runQuest(quest, action)
                     message = tostring(waitForProgress)
                     waitForProgress = true
                 end
-                if (repeatCollect or fastHatch) and message then
+                if repeatCollect and message then
                     local reason = tostring(message):lower()
                     if reason:find("too quickly", 1, true)
                         or reason:find("cooldown", 1, true)
@@ -204,7 +204,7 @@ local function runQuest(quest, action)
                     warn("[Rank quest] " .. quest.title .. ": " .. tostring(message))
                 end
                 lastMessage = message
-                if waitForProgress and not repeatCollect and not repeatSummon then
+                if waitForProgress and not fastHatch and not repeatCollect and not repeatSummon then
                     sentAtProgress = quest.current
                 end
             end
@@ -393,22 +393,24 @@ function questActions.collectEnchant()
 end
 
 -- Mở trứng ở đúng điểm. Legendary có thể cần nhiều lượt trước khi tăng tiến độ.
-local function hatch(eggId, position, remaining)
-    if not goToPosition(position) then return false, nil, 0.25 end
+local function hatch(eggId, position, fastHatch)
+    local atEgg = goToPosition(position)
+    -- Quest hatch gửi lệnh ngay cả khi client vừa teleport hoặc còn ở xa trứng.
+    if not atEgg and not fastHatch then return false, nil, 0.25 end
     if not save.Get() then return false end
     local count = eggs.GetMaxHatch(dir.Eggs[eggId])
     if not count or count < 1 then return false, "Không đọc được số slot mở trứng" end
     local success, reason = eggs.RequestPurchase(eggId, count)
-    if not success then return true, reason or "Game từ chối mở trứng" end
-    return remaining ~= nil and remaining <= count
+    if not success then return not fastHatch, reason or "Game từ chối mở trứng" end
+    return false
 end
 
-function questActions.eggs(quest)
-    return hatch("Hollow Egg", hollowPosition, quest.target - quest.current)
+function questActions.eggs()
+    return hatch("Hollow Egg", hollowPosition, true)
 end
 
 function questActions.legendary()
-    return hatch("Veilroot Egg", veilrootPosition)
+    return hatch("Veilroot Egg", veilrootPosition, true)
 end
 
 -- Đổi Wisp Griffin theo tỷ lệ 10:1. Mỗi lần gọi máy dùng UID của một stack.
