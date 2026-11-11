@@ -34,7 +34,15 @@ features.MailAutoClaim = {
 -- Sửa Class và ID nội bộ của món tại đây. Thứ tự ID trong mỗi nhóm là thứ tự dropdown.
 local giftCatalog = {
     Currency = { "Diamonds" },
-    Pet = { "Stingray" },
+    Pet = { "Wisp Griffin" },
+    Enchant = { "" },
+    Fruit = { "" },
+    Hoverboard = { "" },
+    Misc = { "" },
+    Potion = { "" },
+    Seed = { "" },
+    Ultimate = { "" },
+    XPPotion = { "" },
 }
 
 local rules = {}
