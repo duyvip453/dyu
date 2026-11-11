@@ -212,6 +212,7 @@ features.AutoEquipEnchant = {
         local phase = "check"
         local revision = enchantRevision
         local inventorySignature
+        local rank
         local lastError
 
         local function step()
@@ -228,7 +229,9 @@ features.AutoEquipEnchant = {
                 pending = nil
             end
             if revision ~= enchantRevision then
+            if revision ~= enchantRevision or rank ~= data.Rank then
                 revision = enchantRevision
+                rank = data.Rank
                 table.clear(rejected)
                 phase = "check"
             end
@@ -247,6 +250,8 @@ features.AutoEquipEnchant = {
             end
             inventorySignature = signature
             local plan = enchantPlan(items, slots, rejected)
+            local plan = enchantPlan(enchantCandidates(), slots, rejected)
+            if #plan == 0 then return end
 
             local function send(clear, slot, entry)
                 if clear then net.Fire("Enchants_ClearSlot", slot)
@@ -264,7 +269,18 @@ features.AutoEquipEnchant = {
                     if equippedAt(data, slot) ~= (plan[index] and plan[index].uid) then
                         matches = false
                         break
+            -- Game tự lấp ô trống đầu tiên. Xử lý từ trái sang phải để giữ
+            -- đúng thứ tự Add và tránh tháo lại các quyển đã gắn đúng ô.
+            for index, slot in ipairs(slots) do
+                local entry = plan[index]
+                local actual = equippedAt(data, slot)
+                if actual ~= (entry and entry.uid) then
+                    if actual then
+                        send(true, slot)
+                    elseif entry then
+                        send(false, slot, entry)
                     end
+                    return
                 end
                 if matches then return end -- Đúng bộ: không gửi remote.
                 phase = "clear"
@@ -305,4 +321,5 @@ features.AutoEquipEnchant = {
     end,
 }
 
+return features
 return features
