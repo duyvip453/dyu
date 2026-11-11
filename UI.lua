@@ -137,6 +137,7 @@ end
 
 local function buildWebhookTab()
     -- Webhook chung: URL, loại thông báo và nút điều khiển.
+    local petWebhook = features.WebhookEnabled
     webhook:CreateSection({ name = "webhook" })
     webhook:CreateInput({
         name = "Webhook URL",
@@ -144,23 +145,27 @@ local function buildWebhookTab()
         value = "",
         placeholder = "Dán link webhook",
         forgetState = true,
+        callback = function(value)
+            if petWebhook then petWebhook.setUrl(value) end
+        end,
     })
     webhook:CreateDropdown({
         name = "Webhook Events",
         flag = "WebhookEvents",
-        options = {},
+        options = petWebhook and petWebhook.getOptions() or {},
         multiSelect = true,
         value = {},
-        placeholder = "Chưa có tùy chọn",
+        placeholder = "Chọn loại pet muốn báo",
+        callback = function(values)
+            if petWebhook then petWebhook.setSelection(values) end
+        end,
     })
-    webhook:CreateToggle({
-        name = "Start Webhook",
-        flag = "WebhookEnabled",
-        value = false,
-    })
+    createToggle(webhook, "Start Webhook", "WebhookEnabled")
     webhook:CreateButton({
         name = "Test Webhook",
-        callback = function() end,
+        callback = function()
+            if petWebhook then petWebhook.test() end
+        end,
     })
 
     -- Webhook Rank dùng URL và cấu hình riêng.
