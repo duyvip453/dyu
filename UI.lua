@@ -192,7 +192,9 @@ end)
 
 
 
-local giftOptions = { "Gift Bag", "Large Gift Bag", "Mini Chest" }
+local giftFeature = features.AutoOpenGifts
+local giftOptions = giftFeature and giftFeature.getOptions and giftFeature.getOptions()
+    or { "Gift Bag", "Large Gift Bag", "Mini Chest" }
 local initialGifts = {}
 if launchConfig and type(launchConfig.gifts) == "table" then
     for _, id in ipairs(giftOptions) do
@@ -203,7 +205,7 @@ local function setGiftSelection(values)
     local feature = features.AutoOpenGifts
     if feature then feature.setSelection(values) end
 end
-automatic:CreateSection({ name = "open gift" })
+
 automatic:CreateDropdown({
     name = "Gifts",
     flag = "AutoOpenGiftTypes",
