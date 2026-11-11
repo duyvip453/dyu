@@ -136,21 +136,56 @@ local function buildMailTab()
 end
 
 local function buildWebhookTab()
+    -- Webhook chung: URL, loại thông báo và nút điều khiển.
     webhook:CreateSection({ name = "webhook" })
     webhook:CreateInput({
         name = "Webhook URL",
-        flag = "RankWebhookUrl",
+        flag = "WebhookUrl",
         value = "",
         placeholder = "Dán link webhook",
         forgetState = true,
     })
+    webhook:CreateDropdown({
+        name = "Webhook Events",
+        flag = "WebhookEvents",
+        options = {},
+        multiSelect = true,
+        value = {},
+        placeholder = "Chưa có tùy chọn",
+    })
     webhook:CreateToggle({
         name = "Start Webhook",
-        flag = "RankWebhookEnabled",
+        flag = "WebhookEnabled",
         value = false,
     })
     webhook:CreateButton({
         name = "Test Webhook",
+        callback = function() end,
+    })
+
+    -- Webhook Rank dùng URL và cấu hình riêng.
+    webhook:CreateSection({ name = "webhook rank" })
+    webhook:CreateInput({
+        name = "Rank Webhook URL",
+        flag = "RankWebhookUrl",
+        value = "",
+        placeholder = "Dán link webhook rank",
+        forgetState = true,
+    })
+    webhook:CreateInput({
+        name = "Target Rank",
+        flag = "RankWebhookTarget",
+        numeric = true,
+        value = "",
+        placeholder = "Nhập rank để kích hoạt",
+    })
+    webhook:CreateToggle({
+        name = "Start Rank Webhook",
+        flag = "RankWebhookEnabled",
+        value = false,
+    })
+    webhook:CreateButton({
+        name = "Test Rank Webhook",
         callback = function() end,
     })
 end
