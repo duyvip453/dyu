@@ -13,6 +13,7 @@ local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/main/automatic.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/optimize.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/mail.lua",
+    "https://raw.githubusercontent.com/duyvip453/dyu/main/webhook.lua",
 }
 
 local features = {}
@@ -43,6 +44,7 @@ local mail = window:CreateTab({ name = "mail" })
 local trading = window:CreateTab({ name = "trading" })
 local rank = window:CreateTab({ name = "rank" })
 local automatic = window:CreateTab({ name = "automatic" })
+window:CreateTab({ name = "webhook" })
 window:CreateTab({ name = "setting" })
 
 local function createToggle(tab, name, flag)
@@ -119,6 +121,7 @@ createToggle(rank, "auto claim rank reward", "RankAutoClaimReward")
 rank:CreateSection({ name = "auto quest" })
 createToggle(rank, "auto rank quest", "RankAutoQuest")
 createToggle(rank, "stats gui", "RankStatsGui")
+if features.RankWebhook then features.RankWebhook.mount(rank) end
 
 createToggle(automatic, "auto claim free gift", "AutoClaimFreeGift")
 
