@@ -14,6 +14,8 @@ local states = {
 local originals = setmetatable({}, { __mode = "k" })
 local watchedFolders = setmetatable({}, { __mode = "k" })
 local fogOriginals
+local itemPopupOriginal
+local itemPopupJobRunning = false
 local objectBoxes = {}
 local damageConnection
 local boxSize = Vector3.new(1.75, 1.75, 1.75)
@@ -354,6 +356,50 @@ playerGui.DescendantAdded:Connect(function(instance)
     end
 end)
 
+local function syncItemPopups()
+    if itemPopupJobRunning then return end
+    itemPopupJobRunning = true
+    task.defer(function()
+        local ok, err = pcall(function()
+            local library = game:GetService("ReplicatedStorage").Library
+            local settings = require(library.Client.SettingsCmds)
+            local save = require(library.Client.Save)
+            local network = require(library.Client.Network)
+            local key = "ItemNotifications"
+            local options = require(library.Shared.Variables).SettingsInfo[key].options
+            local off = assert(table.find(options, "Off"), "Không tìm thấy tùy chọn Off")
+            local current = settings.GetValue(key)
+            assert(options[current], "Chưa đọc được Item Popups")
+
+            -- Remote của menu chỉ chuyển sang lựa chọn kế tiếp trong vòng.
+            local attempts = 0
+            local lastTarget
+            while true do
+                if states.super and itemPopupOriginal == nil then itemPopupOriginal = current end
+                local target = states.super and off or itemPopupOriginal
+                if not target or current == target then
+                    if not states.super then itemPopupOriginal = nil end
+                    return
+                end
+                if target ~= lastTarget then
+                    lastTarget = target
+                    attempts = 0
+                end
+                assert(attempts < #options, "Không chuyển được Item Popups tới lựa chọn yêu cầu")
+                attempts += 1
+                local success, reason, newValue = network.Invoke("Toggle Setting", key)
+                assert(success and options[newValue], reason or "Game từ chối đổi Item Popups")
+                current = newValue
+                local data = save.Get()
+                if data and data.Settings then data.Settings[key] = current end
+                if current ~= target then task.wait(0.2) end
+            end
+        end)
+        itemPopupJobRunning = false
+        if not ok then warn("[Super Optimize] Item Popups: " .. tostring(err)) end
+    end)
+end
+
 local function updateState(key, enabled)
     states[key] = enabled
     if key == "objects" then
@@ -364,6 +410,7 @@ local function updateState(key, enabled)
             for object in pairs(objectBoxes) do removeObjectBox(object) end
         end
     end
+    if key == "super" then syncItemPopups() end
     refreshVisuals()
 end
 
