@@ -239,7 +239,7 @@ features.RankAutoQuest = {
                     activeQuest = quest
                     runQuest(quest, action)
                     activeQuest = nil
-                    task.wait(4)
+                    task.wait(1)
                 else
                     if shouldWaitAtArea then goToPosition(waitPosition) end
                     task.wait(1)
@@ -329,6 +329,17 @@ local function upgradeStacks(category, inputTier, itemId)
     return stacks
 end
 
+local function buildUpgradeBatch(stacks, count)
+    local batch = {}
+    for _, stack in ipairs(stacks) do
+        local amount = math.min(stack.capacity, count)
+        batch[stack.uid] = amount
+        count -= amount
+        if count == 0 then return batch end
+    end
+    return nil
+end
+
 -- Upgrade: gom đủ nguyên liệu cho toàn bộ số đầu ra còn thiếu trước khi gọi máy.
 local function upgradeExact(quest, category, goalTier, itemId)
     local fromTier = readRequiredTier(quest.title, "from%s+")
@@ -355,15 +366,10 @@ local function upgradeExact(quest, category, goalTier, itemId)
         end
     end
 
-    local batch = {}
-    for _, stack in ipairs(stacks) do
-        local amount = math.min(stack.capacity, count)
-        batch[stack.uid] = amount
-        count -= amount
-        if count == 0 then
-            local success, reason = net.Invoke(remote .. "Bulk", batch)
-            return success, not success and (reason or "Máy từ chối nâng cấp theo lô") or nil
-        end
+    local batch = buildUpgradeBatch(stacks, count)
+    if batch then
+        local success, reason = net.Invoke(remote .. "Bulk", batch)
+        return success, not success and (reason or "Máy từ chối nâng cấp theo lô") or nil
     end
     return false, "Chưa đủ nguyên liệu để nâng cấp đủ số lượng trong một lượt"
 end
@@ -376,20 +382,39 @@ function questActions.upgradePotion(quest)
     return upgradeExact(quest, "Potion", quest.potionTier, quest.potionId)
 end
 
--- Collect: chọn lại một stack ngẫu nhiên mỗi lượt và chỉ tạo một vật phẩm.
-local function collectByUpgrading(category)
+-- Collect: tạo đúng số lượng còn thiếu từ bất kỳ cấp nào có thể nâng.
+local function collectByUpgrading(quest, category)
+    local count = quest.target - quest.current
+    if count <= 0 then return false end
     local stacks = upgradeStacks(category)
-    if #stacks == 0 then return false, "Chưa có stack đủ nguyên liệu để Collect" end
-    local stack = stacks[math.random(#stacks)]
-    return invokeMachine(upgradeMachines[category].remote, stack.uid, 1)
+    local remote = upgradeMachines[category].remote
+    local partialStacks = {}
+    local lastError
+    for _, stack in ipairs(stacks) do
+        if stack.capacity >= count then
+            local ok, success, reason = pcall(net.Invoke, remote, stack.uid, count)
+            if ok and success then return true, nil, 3 end
+            lastError = (ok and reason or success) or "Máy từ chối nâng cấp"
+        else
+            table.insert(partialStacks, stack)
+        end
+    end
+
+    local batch = buildUpgradeBatch(partialStacks, count)
+    if batch then
+        local ok, success, reason = pcall(net.Invoke, remote .. "Bulk", batch)
+        if ok and success then return true, nil, 3 end
+        lastError = (ok and reason or success) or "Máy từ chối nâng cấp theo lô"
+    end
+    return false, lastError or "Chưa đủ nguyên liệu để Collect đúng số lượng"
 end
 
-function questActions.collectPotion()
-    return collectByUpgrading("Potion")
+function questActions.collectPotion(quest)
+    return collectByUpgrading(quest, "Potion")
 end
 
-function questActions.collectEnchant()
-    return collectByUpgrading("Enchant")
+function questActions.collectEnchant(quest)
+    return collectByUpgrading(quest, "Enchant")
 end
 
 -- Mở trứng ở đúng điểm. Legendary có thể cần nhiều lượt trước khi tăng tiến độ.
