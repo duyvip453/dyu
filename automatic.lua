@@ -6,7 +6,15 @@ local net = require(lib.Client.Network)
 local save = require(lib.Client.Save)
 local dir = require(lib.Directory)
 local job
-local giftOrder = { "Gift Bag", "Large Gift Bag", "Mini Chest" }
+local giftOrder = {
+    "Gift Bag",
+    "Large Gift Bag",
+    "Mini Chest",
+    "Large Enchant Bundle",
+    "Enchant Bundle",
+    "Large Potion Bundle",
+    "Potion Bundle",
+}
 local selectedGifts = {}
 local openingGifts = false
 local giftJob
@@ -96,6 +104,7 @@ local function openSelectedGifts()
 end
 
 features.AutoOpenGifts = {
+    getOptions = function() return table.clone(giftOrder) end,
     setSelection = function(values)
         selectedGifts = {}
         for _, id in ipairs(values or {}) do
