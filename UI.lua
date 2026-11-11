@@ -125,11 +125,27 @@ createToggle(automatic, "auto claim free gift", "AutoClaimFreeGift")
 automatic:CreateSection({ name = "Enchant" })
 local enchantFeature = features.AutoEquipEnchant
 local selectedEnchant
+
+-- Việc đọc inventory qua EnchantItem có thể làm mất quyền tạo UI trên luồng hiện tại.
+local function runEnchantInventoryAction(action, ...)
+    local result
+    task.spawn(function(...)
+        result = table.pack(pcall(action, ...))
+    end, ...)
+    while not result do task.wait() end
+    return table.unpack(result, 1, result.n)
+end
+
+local hasEnchantNames, enchantNames = runEnchantInventoryAction(enchantFeature.getNames)
+if not hasEnchantNames then
+    warn("[Enchant UI] " .. tostring(enchantNames))
+    enchantNames = {}
+end
 local enchantDropdown = automatic:CreateDropdown({
     name = "Enchant",
     flag = "AutoEnchantSelection",
     multiSelect = false,
-    options = enchantFeature.getNames(),
+    options = enchantNames,
     callback = function(value) selectedEnchant = value end,
 })
 local enchantText = automatic:CreateText({ text = "enchant : (trống)" })
@@ -141,7 +157,10 @@ automatic:CreateButton({
     name = "add enchant",
     callback = function()
         local name = selectedEnchant or enchantDropdown.value[1]
-        if name then enchantFeature.add(name) end
+        if name then
+            local ok, err = runEnchantInventoryAction(enchantFeature.add, name)
+            if not ok then warn("[Enchant UI] " .. tostring(err)) end
+        end
         updateEnchantText()
     end,
 })
@@ -157,10 +176,10 @@ createToggle(automatic, "auto equip enchant", "AutoEquipEnchant")
 -- Làm mới tên khi inventory thay đổi; không nhân đôi vòng lặp khi exec lại UI.
 if environment.RobloxHubEnchantUiJob then pcall(task.cancel, environment.RobloxHubEnchantUiJob) end
 environment.RobloxHubEnchantUiJob = task.spawn(function()
-    local previous
+    local previous = table.concat(enchantNames, "\0")
     while true do
         task.wait(5)
-        local ok, names = pcall(enchantFeature.getNames)
+        local ok, names = runEnchantInventoryAction(enchantFeature.getNames)
         if ok then
             local signature = table.concat(names, "\0")
             if signature ~= previous then
