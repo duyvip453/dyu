@@ -169,6 +169,7 @@ local function buildWebhookTab()
     })
 
     -- Webhook Rank dùng URL và cấu hình riêng.
+    local rankWebhook = features.RankWebhookEnabled
     webhook:CreateSection({ name = "webhook rank" })
     webhook:CreateInput({
         name = "Rank Webhook URL",
@@ -176,6 +177,9 @@ local function buildWebhookTab()
         value = "",
         placeholder = "Dán link webhook rank",
         forgetState = true,
+        callback = function(value)
+            if rankWebhook then rankWebhook.setUrl(value) end
+        end,
     })
     webhook:CreateInput({
         name = "Target Rank",
@@ -183,15 +187,16 @@ local function buildWebhookTab()
         numeric = true,
         value = "",
         placeholder = "Nhập rank để kích hoạt",
+        callback = function(value)
+            if rankWebhook then rankWebhook.setTarget(value) end
+        end,
     })
-    webhook:CreateToggle({
-        name = "Start Rank Webhook",
-        flag = "RankWebhookEnabled",
-        value = false,
-    })
+    createToggle(webhook, "Start Rank Webhook", "RankWebhookEnabled")
     webhook:CreateButton({
         name = "Test Rank Webhook",
-        callback = function() end,
+        callback = function()
+            if rankWebhook then rankWebhook.test() end
+        end,
     })
 end
 
