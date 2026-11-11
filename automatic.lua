@@ -146,6 +146,7 @@ local enchantItems = require(lib.Items.EnchantItem)
 local enchantCmds = require(lib.Client.EnchantCmds)
 local enchantWanted = {}
 local enchantRevision = 0
+local appliedEnchantRevision
 local enchantJob
 
 local function equippedAt(data, slot)
@@ -212,6 +213,7 @@ features.AutoEquipEnchant = {
         local phase = "check"
         local revision = enchantRevision
         local inventorySignature
+        local rebuild = appliedEnchantRevision ~= nil and appliedEnchantRevision ~= revision
         local rank
         local lastError
 
@@ -229,11 +231,14 @@ features.AutoEquipEnchant = {
                 pending = nil
             end
             if revision ~= enchantRevision then
-            if revision ~= enchantRevision or rank ~= data.Rank then
                 revision = enchantRevision
-                rank = data.Rank
+                rebuild = true
                 table.clear(rejected)
                 phase = "check"
+            end
+            if rank ~= data.Rank then
+                rank = data.Rank
+                table.clear(rejected)
             end
             -- Clear button reset danh sách yêu cầu; danh sách rỗng thì dừng equip.
             if #enchantWanted == 0 then return end
@@ -269,6 +274,37 @@ features.AutoEquipEnchant = {
                     if equippedAt(data, slot) ~= (plan[index] and plan[index].uid) then
                         matches = false
                         break
+                    end
+                end
+                if matches then return end -- Đúng bộ: không gửi remote.
+                phase = "clear"
+            end
+            if phase == "clear" then
+                -- Sai bộ: clear từng ô đang đeo, xác nhận hết rồi mới equip lại.
+                for index = #slots, 1, -1 do
+                    if equippedAt(data, slots[index]) then
+                        send(true, slots[index])
+            -- Đổi danh sách thì tháo từng ô trước khi gắn lại theo thứ tự mới.
+            -- Mở thêm slot không đổi revision, nên giữ nguyên các ô đã đúng.
+            if rebuild then
+                for _, slot in ipairs(slots) do
+                    if equippedAt(data, slot) then
+                        send(true, slot)
+                        return
+                    end
+                end
+                phase = "equip"
+                rebuild = false
+            end
+            if phase == "equip" then
+                for index, entry in ipairs(plan) do
+                    local actual = equippedAt(data, slots[index])
+                    if actual ~= entry.uid then
+                        if actual then phase = "clear"; return end
+                        send(false, slots[index], entry)
+                        return
+            appliedEnchantRevision = revision
+
             -- Game tự lấp ô trống đầu tiên. Xử lý từ trái sang phải để giữ
             -- đúng thứ tự Add và tránh tháo lại các quyển đã gắn đúng ô.
             for index, slot in ipairs(slots) do
@@ -281,28 +317,6 @@ features.AutoEquipEnchant = {
                         send(false, slot, entry)
                     end
                     return
-                end
-                if matches then return end -- Đúng bộ: không gửi remote.
-                phase = "clear"
-            end
-            if phase == "clear" then
-                -- Sai bộ: clear từng ô đang đeo, xác nhận hết rồi mới equip lại.
-                for index = #slots, 1, -1 do
-                    if equippedAt(data, slots[index]) then
-                        send(true, slots[index])
-                        return
-                    end
-                end
-                phase = "equip"
-            end
-            if phase == "equip" then
-                for index, entry in ipairs(plan) do
-                    local actual = equippedAt(data, slots[index])
-                    if actual ~= entry.uid then
-                        if actual then phase = "clear"; return end
-                        send(false, slots[index], entry)
-                        return
-                    end
                 end
                 phase = "check"
             end
