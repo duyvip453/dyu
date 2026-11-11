@@ -15,6 +15,14 @@ local giftOrder = {
     "Large Potion Bundle",
     "Potion Bundle",
 }
+
+-- Điền ID tên enchant tại đây, mỗi dòng một ID đúng như trong game.
+local enchantOrder = {
+    "Tap Power",
+    "Criticals",
+    "Treasure Hunter",
+}
+
 local selectedGifts = {}
 local openingGifts = false
 local giftJob
@@ -126,16 +134,6 @@ local enchantWanted = {}
 local enchantRevision = 0
 local enchantJob
 
-local function enchantNames()
-    local names, seen = {}, {}
-    for _, item in pairs(enchantItems:All()) do
-        local name = item:GetId()
-        if not seen[name] then seen[name] = true; names[#names + 1] = name end
-    end
-    table.sort(names)
-    return names
-end
-
 local function equippedAt(data, slot)
     local equipped = data.EquippedEnchants or {}
     return equipped[tostring(slot)] or equipped[slot]
@@ -181,10 +179,10 @@ local function enchantPlan(items, slots, rejected)
 end
 
 features.AutoEquipEnchant = {
-    getNames = enchantNames,
+    getNames = function() return table.clone(enchantOrder) end,
     getList = function() return table.clone(enchantWanted) end,
     add = function(name)
-        if not table.find(enchantNames(), name) then return false end
+        if not table.find(enchantOrder, name) then return false end
         enchantWanted[#enchantWanted + 1] = name
         enchantRevision += 1
         return true
@@ -246,6 +244,7 @@ features.AutoEquipEnchant = {
             end
 
             if phase == "check" then
+                if #plan == 0 then return end -- Chưa có sách phù hợp để thay bộ hiện tại.
                 local matches = true
                 for index, slot in ipairs(slots) do
                     if equippedAt(data, slot) ~= (plan[index] and plan[index].uid) then
