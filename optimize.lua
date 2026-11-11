@@ -20,6 +20,63 @@ local dropFolderNames = {
     lootbox = true,
 }
 
+-- Chỉ ẩn hình khối trong các nhóm render đã xác nhận dưới Workspace.__THINGS.
+local superVisualFolders = {
+    pets = true,
+    shinyrelics = true,
+    hoverboards = true,
+}
+
+local mapRoots = {
+    ["PSX Hall"] = true,
+    ["PSX Portal"] = true,
+    GREYBOX_WIP = true,
+}
+
+local mapThings = {
+    Ornaments = true,
+    __FAKE_GROUND = true,
+    __FAKE_INSTANCE_GROUND = true,
+    __FAKE_INSTANCE_BREAK_ZONES = true,
+}
+
+local function isMapGeometry(instance)
+    if not (instance:IsA("BasePart") or instance:IsA("Decal") or instance:IsA("Texture")) then
+        return false
+    end
+    local current = instance
+    while current and current ~= workspace do
+        local name = current.Name
+        local lowerName = string.lower(name)
+        if lowerName:find("chest", 1, true) or lowerName:find("breakable", 1, true) then
+            return false
+        end
+        local parent = current.Parent
+        if parent == workspace then
+            return mapRoots[name] == true or name:match("^Map%d*$") ~= nil
+                or name:match("^Border%d+$") ~= nil or name:match("^ALWAYS_RENDERING_%d+$") ~= nil
+                or name:match("^Zone %d+$") ~= nil
+        end
+        if parent and parent.Parent == workspace and parent.Name == "__THINGS" then
+            return mapThings[name] == true
+        end
+        current = parent
+    end
+    return false
+end
+
+local function getVisualFolderName(instance)
+    local parent = instance.Parent
+    if not parent or parent.Parent ~= workspace then return nil end
+    if not (instance:IsA("Folder") or instance:IsA("Model")) then return nil end
+    local name = string.lower(instance.Name)
+    if parent.Name == "__THINGS" and (dropFolderNames[name] or superVisualFolders[name]) then
+        return name
+    end
+    if parent.Name == "__DEBRIS" and name == "currency" then return name end
+    return nil
+end
+
 local function isLootBoxFolder(name)
     name = string.lower(name)
     return name == "lootbags" or name == "lootboxes" or name == "lootbox"
@@ -28,13 +85,14 @@ end
 local function isFolderDisabled(name)
     if states.super then return true end
     if states.lootBoxes and isLootBoxFolder(name) then return true end
-    local lowerName = string.lower(name)
-    return states.objects and (lowerName == "coins" or lowerName == "orbs")
+    return states.objects and (name == "coins" or name == "orbs" or name == "currency")
 end
 
 local function getHiddenProperties(instance)
     if instance:IsA("BasePart") then
         return { { "LocalTransparencyModifier", 1 } }
+    elseif instance:IsA("Decal") or instance:IsA("Texture") then
+        return { { "Transparency", 1 } }
     elseif instance:IsA("Atmosphere") then
         return {
             { "Density", 0 },
@@ -90,7 +148,8 @@ end
 local function hasDisabledFolderAncestor(instance)
     local current = instance
     while current and current ~= workspace do
-        if dropFolderNames[string.lower(current.Name)] and isFolderDisabled(current.Name) then
+        local name = getVisualFolderName(current)
+        if name and isFolderDisabled(name) then
             return true
         end
         current = current.Parent
@@ -99,6 +158,8 @@ local function hasDisabledFolderAncestor(instance)
 end
 
 local function shouldHide(instance)
+    if states.super and isMapGeometry(instance) then return true end
+    if instance:IsA("BasePart") and instance.CanCollide then return false end
     return hasDisabledFolderAncestor(instance)
         or ((states.lootBoxes or states.super) and isWorldEffect(instance))
 end
@@ -120,10 +181,12 @@ local function watchFolder(folder)
 end
 
 local function scanFolders()
-    for _, instance in ipairs(workspace:GetDescendants()) do
-        if dropFolderNames[string.lower(instance.Name)]
-            and (instance:IsA("Folder") or instance:IsA("Model")) then
-            watchFolder(instance)
+    for _, name in ipairs({ "__THINGS", "__DEBRIS" }) do
+        local container = workspace:FindFirstChild(name)
+        if container then
+            for _, instance in ipairs(container:GetChildren()) do
+                if getVisualFolderName(instance) then watchFolder(instance) end
+            end
         end
     end
 end
@@ -151,7 +214,9 @@ local function refreshVisuals()
         applyTree(folder)
     end
     for _, instance in ipairs(workspace:GetDescendants()) do
-        if isWorldEffect(instance) then setLocalHidden(instance, shouldHide(instance)) end
+        if originals[instance] or isWorldEffect(instance) or (states.super and isMapGeometry(instance)) then
+            setLocalHidden(instance, shouldHide(instance))
+        end
     end
     for _, instance in ipairs(lighting:GetDescendants()) do
         if isWorldEffect(instance) then setLocalHidden(instance, shouldHide(instance)) end
@@ -163,8 +228,7 @@ local function refreshVisuals()
 end
 
 workspace.DescendantAdded:Connect(function(instance)
-    if dropFolderNames[string.lower(instance.Name)]
-        and (instance:IsA("Folder") or instance:IsA("Model")) then
+    if getVisualFolderName(instance) then
         watchFolder(instance)
     elseif getHiddenProperties(instance) then
         setLocalHidden(instance, shouldHide(instance))
