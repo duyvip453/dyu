@@ -21,6 +21,17 @@ local enchantOrder = {
     "Tap Power",
     "Criticals",
     "Treasure Hunter",
+    "Strong Pets",
+    "Lucky Eggs",
+    "Coins",
+    "Diamonds",
+    "Magnet",
+    "Speed",
+    "",
+    "",
+    "",
+    "",
+    
 }
 
 local selectedGifts = {}
