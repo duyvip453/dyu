@@ -166,8 +166,10 @@ end
 -- Vòng điều phối. Chỉ một quest được chạy tại một thời điểm.
 local function runQuest(quest, action)
     local repeatCollect = quest.kind == "collectPotion" or quest.kind == "collectEnchant"
+    local repeatSummon = quest.kind == "coinJar" or quest.kind == "comet"
+        or quest.kind == "pinata" or quest.kind == "luckyBlock"
     local fastHatch = quest.kind == "eggs" or quest.kind == "legendary"
-    local actionInterval = fastHatch and 0 or (quest.interval or 3)
+    local actionInterval = fastHatch and 0 or (repeatSummon and 0.25 or (quest.interval or 3))
     local nextAttempt = 0
     local sentAtProgress
     local lastMessage
@@ -177,7 +179,7 @@ local function runQuest(quest, action)
         if goal then
             if goal.UID ~= quest.uid or goal.Progress >= goal.Amount then return end
 
-            if os.clock() >= nextAttempt and goal.Progress ~= sentAtProgress then
+            if os.clock() >= nextAttempt and (repeatSummon or goal.Progress ~= sentAtProgress) then
                 quest.current, quest.target, quest.potionTier = goal.Progress, goal.Amount, goal.PotionTier
                 quest.potionId, quest.enchantId, quest.enchantTier = goal.PotionID, goal.EnchantID, goal.EnchantTier
                 local ok, waitForProgress, message, retryDelay = pcall(action, quest)
@@ -202,7 +204,7 @@ local function runQuest(quest, action)
                     warn("[Rank quest] " .. quest.title .. ": " .. tostring(message))
                 end
                 lastMessage = message
-                if waitForProgress and not repeatCollect then
+                if waitForProgress and not repeatCollect and not repeatSummon then
                     sentAtProgress = quest.current
                 end
             end
@@ -448,7 +450,7 @@ function questActions.makeRainbow(quest)
     return false
 end
 
--- Triệu hồi một vật thể mỗi lần, rồi chờ quest ghi nhận trước khi dùng thêm.
+-- Triệu hồi liên tục mỗi 0.25s; vòng điều phối không khóa theo progress nhóm này.
 local function summon(position, itemId, remote)
     if not goToPosition(position) then return false end
     local uid = chooseStack("Misc", function(item)
@@ -456,8 +458,8 @@ local function summon(position, itemId, remote)
     end)
     if not uid then return false, "Không có " .. itemId .. " trong inventory" end
     local success, reason = net.Invoke(remote, uid)
-    if not success then return true, reason or "Game từ chối triệu hồi " .. itemId end
-    return true
+    if not success then return false, reason or "Game từ chối triệu hồi " .. itemId end
+    return false
 end
 
 function questActions.comet()
