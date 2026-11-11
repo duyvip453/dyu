@@ -49,7 +49,7 @@ local mail = window:CreateTab({ name = "mail" })
 local trading = window:CreateTab({ name = "trading" })
 local rank = window:CreateTab({ name = "rank" })
 local automatic = window:CreateTab({ name = "automatic" })
-window:CreateTab({ name = "webhook" })
+local webhook = window:CreateTab({ name = "webhook" })
 window:CreateTab({ name = "setting" })
 
 local function createToggle(tab, name, flag)
@@ -127,20 +127,20 @@ rank:CreateSection({ name = "auto quest" })
 createToggle(rank, "auto rank quest", "RankAutoQuest")
 createToggle(rank, "stats gui", "RankStatsGui")
 
-rank:CreateSection({ name = "webhook" })
-rank:CreateInput({
+webhook:CreateSection({ name = "webhook" })
+webhook:CreateInput({
     name = "Webhook URL",
     flag = "RankWebhookUrl",
     value = "",
-    placeholder = "Dán link webhook",
+    placeholder = "link webhook",
     forgetState = true,
 })
-rank:CreateToggle({
+webhook:CreateToggle({
     name = "Start Webhook",
     flag = "RankWebhookEnabled",
     value = false,
 })
-rank:CreateButton({
+webhook:CreateButton({
     name = "Test Webhook",
     callback = function() end,
 })
