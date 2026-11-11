@@ -173,24 +173,11 @@ automatic:CreateButton({
 })
 createToggle(automatic, "auto equip enchant", "AutoEquipEnchant")
 
--- Làm mới tên khi inventory thay đổi; không nhân đôi vòng lặp khi exec lại UI.
-if environment.RobloxHubEnchantUiJob then pcall(task.cancel, environment.RobloxHubEnchantUiJob) end
-environment.RobloxHubEnchantUiJob = task.spawn(function()
-    local previous = table.concat(enchantNames, "\0")
-    while true do
-        task.wait(5)
-        local ok, names = runEnchantInventoryAction(enchantFeature.getNames)
-        if ok then
-            local signature = table.concat(names, "\0")
-            if signature ~= previous then
-                enchantDropdown:Refresh(names)
-                previous = signature
-            end
-        end
-    end
-end)
-
-
+-- Dọn vòng làm mới inventory còn chạy từ bản UI cũ.
+if environment.RobloxHubEnchantUiJob then
+    pcall(task.cancel, environment.RobloxHubEnchantUiJob)
+    environment.RobloxHubEnchantUiJob = nil
+end
 
 local giftFeature = features.AutoOpenGifts
 local giftOptions = giftFeature and giftFeature.getOptions and giftFeature.getOptions()
