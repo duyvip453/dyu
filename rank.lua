@@ -619,4 +619,27 @@ features.RankStatsGui = {
     end,
 }
 
+-- Giao diện webhook dành riêng cho Rank, tách khỏi tab Webhook.
+features.RankWebhook = {
+    mount = function(tab)
+        tab:CreateSection({ name = "webhook" })
+        tab:CreateInput({
+            name = "Webhook URL",
+            flag = "RankWebhookUrl",
+            value = "",
+            placeholder = "Dán link webhook",
+            forgetState = true,
+        })
+        tab:CreateToggle({
+            name = "Start Webhook",
+            flag = "RankWebhookEnabled",
+            value = false,
+        })
+        tab:CreateButton({
+            name = "Test Webhook",
+            callback = function() end,
+        })
+    end,
+}
+
 return features
