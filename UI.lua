@@ -10,14 +10,15 @@ local startupActions = {}
 local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/farm.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/rank.lua",
-    "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/automatic.lua",
+    "https://raw.githubusercontent.com/duyvip453/dyu/main/automatic.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/optimize.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/mail.lua",
 }
 
 local features = {}
 for _, url in ipairs(urls) do
-    local loadTab = assert(loadstring(game:HttpGet(url)))
+    local filename = url:match("[^/]+$")
+    local loadTab = assert(loadstring(game:HttpGet(url), "@" .. filename))
     for flag, feature in pairs(loadTab()) do
         features[flag] = feature
     end
