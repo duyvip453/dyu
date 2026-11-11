@@ -13,14 +13,15 @@ local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/main/automatic.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/optimize.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/mail.lua",
-    "https://raw.githubusercontent.com/duyvip453/dyu/main/webhook.lua",
 }
 
 local features = {}
 for _, url in ipairs(urls) do
     local filename = url:match("[^/]+$")
     local loadTab = assert(loadstring(game:HttpGet(url), "@" .. filename))
-    for flag, feature in pairs(loadTab()) do
+    local moduleFeatures = loadTab()
+    assert(type(moduleFeatures) == "table", filename .. " phải trả về bảng features")
+    for flag, feature in pairs(moduleFeatures) do
         features[flag] = feature
     end
 end
@@ -44,6 +45,7 @@ local mail = window:CreateTab({ name = "mail" })
 local trading = window:CreateTab({ name = "trading" })
 local rank = window:CreateTab({ name = "rank" })
 local automatic = window:CreateTab({ name = "automatic" })
+-- Tab chờ triển khai. Chỉ thêm webhook.lua vào loader khi module có logic.
 window:CreateTab({ name = "webhook" })
 window:CreateTab({ name = "setting" })
 
