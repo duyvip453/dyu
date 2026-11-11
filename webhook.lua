@@ -79,8 +79,7 @@ local function buildDropPayload(record)
     return { embeds = { embed }, allowed_mentions = { parse = {} } }
 end
 
-local function postDrop(record)
-    local url = webhookUrl
+local function postWebhook(url, buildPayload, value)
     if not url:match("^https://discord%.com/api/webhooks/%d+/[%w_-]+$") then
         return false, "Hãy nhập URL webhook Discord hợp lệ"
     end
@@ -92,7 +91,7 @@ local function postDrop(record)
             Url = url .. "?wait=true",
             Method = "POST",
             Headers = { ["Content-Type"] = "application/json" },
-            Body = http:JSONEncode(buildDropPayload(record)),
+            Body = http:JSONEncode(buildPayload(value)),
         })
     end)
     -- Không đưa URL/token vào Output khi request lỗi.
@@ -102,6 +101,10 @@ local function postDrop(record)
         return false, "Discord HTTP " .. tostring(status or "không rõ")
     end
     return true
+end
+
+local function postDrop(record)
+    return postWebhook(webhookUrl, buildDropPayload, record)
 end
 
 local function watchDrops()
@@ -164,6 +167,73 @@ features.WebhookEnabled = {
             local ok, reason = postDrop(firstPet)
             if ok then print("[Webhook] Discord đã nhận tin test")
             else warn("[Webhook] " .. reason) end
+        end)
+    end,
+}
+
+-- Webhook Rank dùng URL, mốc và vòng theo dõi riêng.
+local rankWebhookUrl = ""
+local targetRank
+local rankJob
+local notifiedRanks = {}
+
+local function buildRankPayload(rank)
+    return {
+        embeds = {{
+            title = "Rank quest completed",
+            description = ("||%s|| **has reached rank %s**\n\nbecause your mom is fat!😂"):format(player.Name, rank),
+            color = 65464,
+        }},
+        allowed_mentions = { parse = {} },
+    }
+end
+
+local function watchRank()
+    while true do
+        local url, target = rankWebhookUrl, targetRank
+        local data = save.Get()
+        local currentRank = data and tonumber(data.Rank)
+        local delay = 1
+        if url ~= "" and target and currentRank and currentRank >= target then
+            local key = url .. ":" .. target
+            if not notifiedRanks[key] then
+                local ok, reason = postWebhook(url, buildRankPayload, currentRank)
+                if ok then
+                    notifiedRanks[key] = true
+                else
+                    warn("[Webhook Rank] " .. reason)
+                    delay = 10
+                end
+            end
+        end
+        task.wait(delay)
+    end
+end
+
+features.RankWebhookEnabled = {
+    setUrl = function(value) rankWebhookUrl = value:match("^%s*(.-)%s*$") end,
+    setTarget = function(value)
+        local number = tonumber(value)
+        targetRank = number and number >= 1 and number < math.huge and number % 1 == 0 and number or nil
+    end,
+    duy = function(enabled)
+        if enabled and not rankJob then
+            rankJob = task.defer(watchRank)
+        elseif not enabled and rankJob then
+            task.cancel(rankJob)
+            rankJob = nil
+        end
+    end,
+    test = function()
+        local url, target = rankWebhookUrl, targetRank
+        if not target then
+            warn("[Webhook Rank] Nhập Target Rank là số nguyên dương để test")
+            return
+        end
+        task.defer(function()
+            local ok, reason = postWebhook(url, buildRankPayload, target)
+            if ok then print("[Webhook Rank] Discord đã nhận tin test")
+            else warn("[Webhook Rank] " .. reason) end
         end)
     end,
 }
