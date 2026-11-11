@@ -203,7 +203,7 @@ local function setGiftSelection(values)
     local feature = features.AutoOpenGifts
     if feature then feature.setSelection(values) end
 end
-
+automatic:CreateSection({ name = "open gift" })
 automatic:CreateDropdown({
     name = "Gifts",
     flag = "AutoOpenGiftTypes",
