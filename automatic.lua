@@ -7,30 +7,33 @@ local save = require(lib.Client.Save)
 local dir = require(lib.Directory)
 local job
 local giftOrder = {
-    "Gift Bag",
-    "Large Gift Bag",
-    "Mini Chest",
-    "Large Enchant Bundle",
-    "Enchant Bundle",
-    "Large Potion Bundle",
-    "Potion Bundle",
+    "Gift Bag","Large Gift Bag","Mini Chest","Enchant Bundle","Large Enchant Bundle","Potion Bundle","Large Potion Bundle","Toy Bundle",
+    "Flag Bundle",
+    "Fruit Bundle",
+    "Rainbow Mini Chest",
+    "",
+    "",
+    
 }
 
 -- Điền ID tên enchant tại đây, mỗi dòng một ID đúng như trong game.
 local enchantOrder = {
-    "Tap Power",
-    "Criticals",
-    "Treasure Hunter",
-    "Strong Pets",
-    "Lucky Eggs",
-    "Coins",
-    "Diamonds",
-    "Magnet",
-    "Speed",
-    "",
-    "",
-    "",
-    "",
+    "Tap Power","Criticals","Treasure Hunter","Strong Pets","Lucky Eggs","Coins","Diamonds","Magnet","Walkspeed","Chest Breaker","Large Taps","Tap Teamwork","Swift Taps","Explosive","Shiny Supercharge","Shiny Hunter","Angelic",
+    "Demonic","Corruption","Fruity","Boss Chest Mimic",
+    "Chest Mimic",
+    "Lucky Block",
+    "Fireworks",
+    "Party Time",
+    "Magic Orb",
+    "Fortune",
+    "Huge Hunter",
+    "Super Lightning",
+    "Happy Pets",
+    "Massive Comet",
+    "Boss Lucky Block",
+    "Super Magnet",
+    "Super Treasure Hunter",
+    "Lucky Block Breaker",
     
 }
 
