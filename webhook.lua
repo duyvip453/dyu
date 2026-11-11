@@ -66,10 +66,10 @@ local function thumbnailUrl(icon)
     end
 end
 
-local function buildDropPayload(record, isTest)
+local function buildDropPayload(record)
     local item = petItem(record.id):SetType(record.petType):SetShiny(record.shiny)
     local embed = {
-        title = (isTest and "TEST · " or "") .. record.category:upper() .. " DROP",
+        title = record.category:upper() .. " DROP",
         description = ("**Name Pet: %s**\n**Exist: %s**\n**Rap: %s**\n**Account:**\n||%s||"):format(
             item:GetName(), formatNumber(exist.Get(item)), formatNumber(rap.Get(item)), player.Name),
         color = 16769288,
@@ -79,7 +79,7 @@ local function buildDropPayload(record, isTest)
     return { embeds = { embed }, allowed_mentions = { parse = {} } }
 end
 
-local function postDrop(record, isTest)
+local function postDrop(record)
     local url = webhookUrl
     if not url:match("^https://discord%.com/api/webhooks/%d+/[%w_-]+$") then
         return false, "Hãy nhập URL webhook Discord hợp lệ"
@@ -92,7 +92,7 @@ local function postDrop(record, isTest)
             Url = url .. "?wait=true",
             Method = "POST",
             Headers = { ["Content-Type"] = "application/json" },
-            Body = http:JSONEncode(buildDropPayload(record, isTest)),
+            Body = http:JSONEncode(buildDropPayload(record)),
         })
     end)
     -- Không đưa URL/token vào Output khi request lỗi.
@@ -113,7 +113,7 @@ local function watchDrops()
                 for key, record in pairs(current) do
                     local oldAmount = previous[key] and previous[key].amount or 0
                     if record.amount > oldAmount and selected[record.category] then
-                        local ok, reason = postDrop(record, false)
+                        local ok, reason = postDrop(record)
                         if not ok then warn("[Webhook] " .. reason) end
                     end
                 end
@@ -141,7 +141,27 @@ features.WebhookEnabled = {
     end,
     test = function()
         task.defer(function()
-            local ok, reason = postDrop({ id = "Huge Hollow Bat", petType = 0, shiny = false, category = "Huge" }, true)
+            if next(selected) == nil then
+                warn("[Webhook] Chọn Huge, Titanic hoặc Gargantuan trước khi test")
+                return
+            end
+            local snapshot = readPets()
+            if not snapshot then
+                warn("[Webhook] Chưa đọc được kho pet")
+                return
+            end
+            -- Kho không có thứ tự cố định. Chọn ID/biến thể đầu tiên theo thứ tự tên.
+            local firstKey, firstPet
+            for key, record in pairs(snapshot) do
+                if selected[record.category] and record.amount > 0 and (not firstKey or key < firstKey) then
+                    firstKey, firstPet = key, record
+                end
+            end
+            if not firstPet then
+                warn("[Webhook] Kho chưa có pet thuộc các loại đã chọn")
+                return
+            end
+            local ok, reason = postDrop(firstPet)
             if ok then print("[Webhook] Discord đã nhận tin test")
             else warn("[Webhook] " .. reason) end
         end)
