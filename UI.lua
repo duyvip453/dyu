@@ -98,6 +98,16 @@ local function createToggle(tab, name, flag)
     if initial then table.insert(startupActions, function() apply(true) end) end
 end
 
+-- Đọc kho ở luồng riêng để giữ quyền tạo UI của Rayfield.
+local function runInventoryAction(action, ...)
+    local result
+    task.spawn(function(...)
+        result = table.pack(pcall(action, ...))
+    end, ...)
+    while not result do task.wait() end
+    return table.unpack(result, 1, result.n)
+end
+
 local function startAntiAfk()
     -- Tiện ích nền / Anti-AFK: nhảy mỗi 12 phút, không tạo phần tử giao diện.
     -- Chạy lại UI thì hủy vòng cũ để không tích lũy nhiều vòng nhảy.
@@ -131,27 +141,73 @@ end
 
 local function buildMailTab()
     createToggle(mail, "Tự nhận thư", "MailAutoClaim")
+    local gift = features.MailAutoGift
+    if not gift then return end
     mail:CreateInput({
         name = "User Name",
         flag = "MailUserName",
         value = "",
         placeholder = "...",
+        callback = gift.setRecipient,
     })
 
-    -- Các lựa chọn mẫu để thử lưu cấu hình. Thay bằng dữ liệu trong game khi có.
+    local selectedClass, itemDropdown
+    local function selectClass(class)
+        local changed = selectedClass ~= nil and selectedClass ~= class
+        selectedClass = class
+        if itemDropdown then
+            if changed then itemDropdown:Set("", true) end
+            itemDropdown:Refresh(gift.getNames(class))
+        end
+    end
     mail:CreateDropdown({
         name = "Item Class",
-        flag = "ItemClass",
-        options = { "A", "B" },
-        multiSelect = true,
-        value = {},
+        flag = "MailGiftClass",
+        options = gift.getClasses(),
+        multiSelect = false,
+        callback = selectClass,
     })
-    mail:CreateDropdown({
-        name = "Item Name",
-        flag = "ItemName",
-        options = { "A", "B" },
-        multiSelect = true,
-        value = {},
+    itemDropdown = mail:CreateDropdown({
+        name = "Item ID",
+        flag = "MailGiftItem",
+        options = {},
+        multiSelect = false,
+    })
+    if selectedClass then selectClass(selectedClass) end
+
+    local amount = mail:CreateInput({
+        name = "Amount",
+        flag = "MailGiftAmount",
+        value = "",
+        placeholder = "Ví dụ: 100k",
+    })
+    local keep = mail:CreateInput({
+        name = "Keep",
+        flag = "MailGiftKeep",
+        value = "",
+        placeholder = "Ví dụ: 10k hoặc 0",
+    })
+    local giftText = mail:CreateText({ text = "Danh sách gift: (trống)" })
+    local function updateGiftText()
+        local lines = {}
+        for _, rule in ipairs(gift.getList()) do
+            lines[#lines + 1] = ("%s, %s, %s, %s"):format(rule.class, rule.name, rule.amount, rule.keep)
+        end
+        giftText:Set(#lines > 0 and table.concat(lines, "\n") or "Danh sách gift: (trống)")
+    end
+    mail:CreateButton({
+        name = "Add Item",
+        callback = function()
+            local added, reason = gift.add(selectedClass, itemDropdown.value[1], amount.value, keep.value)
+            if added then updateGiftText() else warn("[Auto Gift] " .. reason) end
+        end,
+    })
+    mail:CreateButton({
+        name = "Clear 1 Item",
+        callback = function()
+            gift.removeLast()
+            updateGiftText()
+        end,
     })
     createToggle(mail, "auto gift", "MailAutoGift")
 end
@@ -261,17 +317,7 @@ local function buildAutomaticTab()
     local enchantFeature = features.AutoEquipEnchant
     local selectedEnchant
 
-    -- Việc đọc inventory qua EnchantItem có thể làm mất quyền tạo UI trên luồng hiện tại.
-    local function runEnchantInventoryAction(action, ...)
-        local result
-        task.spawn(function(...)
-            result = table.pack(pcall(action, ...))
-        end, ...)
-        while not result do task.wait() end
-        return table.unpack(result, 1, result.n)
-    end
-
-    local hasEnchantNames, enchantNames = runEnchantInventoryAction(enchantFeature.getNames)
+    local hasEnchantNames, enchantNames = runInventoryAction(enchantFeature.getNames)
     if not hasEnchantNames then
         warn("[Enchant UI] " .. tostring(enchantNames))
         enchantNames = {}
@@ -292,7 +338,7 @@ local function buildAutomaticTab()
     -- Khôi phục danh sách trước khi Rayfield có thể bật lại Auto Equip từ config.
     local savedEnchants = loadEnchantList()
     if #savedEnchants > 0 then
-        local ok, err = runEnchantInventoryAction(function()
+        local ok, err = runInventoryAction(function()
             for _, name in ipairs(savedEnchants) do
                 if type(name) == "string" then enchantFeature.add(name) end
             end
@@ -305,7 +351,7 @@ local function buildAutomaticTab()
         callback = function()
             local name = selectedEnchant or enchantDropdown.value[1]
             if name then
-                local ok, err = runEnchantInventoryAction(enchantFeature.add, name)
+                local ok, err = runInventoryAction(enchantFeature.add, name)
                 if not ok then warn("[Enchant UI] " .. tostring(err)) end
                 if ok and err then saveEnchantList(enchantFeature.getList()) end
             end
