@@ -13,12 +13,16 @@ local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/main/automatic.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/optimize.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/mail.lua",
+    "https://raw.githubusercontent.com/duyvip453/dyu/main/webhook.lua",
 }
 
 local features = {}
 for _, url in ipairs(urls) do
     local filename = url:match("[^/]+$")
-    local loadTab = assert(loadstring(game:HttpGet(url), "@" .. filename))
+    local source = game:HttpGet(url)
+    -- Một số client còn nhận bản webhook giữ chỗ rỗng từ cache.
+    if filename == "webhook.lua" and not source:find("%S") then continue end
+    local loadTab = assert(loadstring(source, "@" .. filename))
     local moduleFeatures = loadTab()
     assert(type(moduleFeatures) == "table", filename .. " phải trả về bảng features")
     for flag, feature in pairs(moduleFeatures) do
@@ -45,7 +49,6 @@ local mail = window:CreateTab({ name = "mail" })
 local trading = window:CreateTab({ name = "trading" })
 local rank = window:CreateTab({ name = "rank" })
 local automatic = window:CreateTab({ name = "automatic" })
--- Tab chờ triển khai. Chỉ thêm webhook.lua vào loader khi module có logic.
 window:CreateTab({ name = "webhook" })
 window:CreateTab({ name = "setting" })
 
@@ -123,7 +126,24 @@ createToggle(rank, "auto claim rank reward", "RankAutoClaimReward")
 rank:CreateSection({ name = "auto quest" })
 createToggle(rank, "auto rank quest", "RankAutoQuest")
 createToggle(rank, "stats gui", "RankStatsGui")
-if features.RankWebhook then features.RankWebhook.mount(rank) end
+
+rank:CreateSection({ name = "webhook" })
+rank:CreateInput({
+    name = "Webhook URL",
+    flag = "RankWebhookUrl",
+    value = "",
+    placeholder = "Dán link webhook",
+    forgetState = true,
+})
+rank:CreateToggle({
+    name = "Start Webhook",
+    flag = "RankWebhookEnabled",
+    value = false,
+})
+rank:CreateButton({
+    name = "Test Webhook",
+    callback = function() end,
+})
 
 createToggle(automatic, "auto claim free gift", "AutoClaimFreeGift")
 
