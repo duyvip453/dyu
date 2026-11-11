@@ -25,7 +25,7 @@ end
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local window = Rayfield:CreateWindow({
-    name = "Porn hub",
+    name = "Menu Roblox",
     sidebarLayout = true,
     configuration = {
         autoSave = launchConfig == nil,
@@ -67,12 +67,12 @@ end
 createToggle(farm, "inf pet speed", "FarmInfinityPetSpeed")
 createToggle(farm, "fast farm", "FarmFastFarm")
 createToggle(farm, "auto tap", "FarmAutoTap")
-createToggle(farm, "Auto claim orb, lootbox", "FarmAutoCollectOrb")
+createToggle(farm, "Tự nhặt orb", "FarmAutoCollectOrb")
 createToggle(farm, "tele to best area", "FarmTeleToBestArea")
 createToggle(farm, "tele to best world", "FarmTeleToBestWorld")
 createToggle(farm, "auto buy next area", "FarmAutoBuyNextArea")
 
-farm:CreateSection({ name = "upd slot" })
+farm:CreateSection({ name = "Nâng cấp slot" })
 createToggle(farm, "auto upd pet slot", "FarmAutoPetSlot")
 createToggle(farm, "auto upd egg slot", "FarmAutoEggSlot")
 
@@ -83,7 +83,7 @@ createToggle(optimize, "disable objects", "OptimizeDisableObjects")
 optimize:CreateSection({ name = "Combined" })
 createToggle(optimize, "super optimize", "OptimizeSuper")
 
-createToggle(mail, "auto claim mail", "MailAutoClaim")
+createToggle(mail, "Tự nhận thư", "MailAutoClaim")
 mail:CreateInput({
     name = "User Name",
     flag = "MailUserName",
@@ -121,6 +121,57 @@ createToggle(rank, "stats gui", "RankStatsGui")
 
 createToggle(automatic, "auto claim free gift", "AutoClaimFreeGift")
 
+automatic:CreateSection({ name = "Enchant" })
+local enchantFeature = features.AutoEquipEnchant
+local selectedEnchant
+local enchantDropdown = automatic:CreateDropdown({
+    name = "Enchant",
+    flag = "AutoEnchantSelection",
+    multiSelect = false,
+    options = enchantFeature.getNames(),
+    callback = function(value) selectedEnchant = value end,
+})
+local enchantText = automatic:CreateText({ text = "enchant : (trống)" })
+local function updateEnchantText()
+    local list = enchantFeature.getList()
+    enchantText:Set("enchant : " .. (#list > 0 and table.concat(list, ", ") or "(trống)"))
+end
+automatic:CreateButton({
+    name = "add enchant",
+    callback = function()
+        local name = selectedEnchant or enchantDropdown.value[1]
+        if name then enchantFeature.add(name) end
+        updateEnchantText()
+    end,
+})
+automatic:CreateButton({
+    name = "clear enchant",
+    callback = function()
+        enchantFeature.clear()
+        updateEnchantText()
+    end,
+})
+createToggle(automatic, "auto equip enchant", "AutoEquipEnchant")
+
+-- Làm mới tên khi inventory thay đổi; không nhân đôi vòng lặp khi exec lại UI.
+if environment.RobloxHubEnchantUiJob then pcall(task.cancel, environment.RobloxHubEnchantUiJob) end
+environment.RobloxHubEnchantUiJob = task.spawn(function()
+    local previous
+    while true do
+        task.wait(5)
+        local ok, names = pcall(enchantFeature.getNames)
+        if ok then
+            local signature = table.concat(names, "\0")
+            if signature ~= previous then
+                enchantDropdown:Refresh(names)
+                previous = signature
+            end
+        end
+    end
+end)
+
+
+
 local giftOptions = { "Gift Bag", "Large Gift Bag", "Mini Chest" }
 local initialGifts = {}
 if launchConfig and type(launchConfig.gifts) == "table" then
@@ -145,6 +196,9 @@ if launchConfig then setGiftSelection(initialGifts) end
 createToggle(automatic, "auto open gifts", "AutoOpenGifts")
 
 for _, start in ipairs(startupActions) do start() end
+
+-- Tiện ích nền / Anti-AFK: nhảy mỗi 12 phút, không tạo phần tử giao diện.
+-- Chạy lại UI thì hủy vòng cũ để không tích lũy nhiều vòng nhảy.
 if environment.RobloxHubAntiAfkJob then
     pcall(task.cancel, environment.RobloxHubAntiAfkJob)
 end
