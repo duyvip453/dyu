@@ -7,6 +7,27 @@ if type(launchConfig) ~= "table" then launchConfig = nil end
 local launchToggles = launchConfig and type(launchConfig.toggles) == "table" and launchConfig.toggles or {}
 local startupActions = {}
 
+-- Danh sách Add Enchant không phải control có flag, nên lưu riêng theo tài khoản.
+local enchantConfigPath = "RobloxHubEnchantList_" .. game:GetService("Players").LocalPlayer.UserId .. ".json"
+local httpService = game:GetService("HttpService")
+
+local function loadEnchantList()
+    if launchConfig or type(readfile) ~= "function" then return {} end
+    if type(isfile) == "function" and not isfile(enchantConfigPath) then return {} end
+    local ok, list = pcall(function()
+        return httpService:JSONDecode(readfile(enchantConfigPath))
+    end)
+    return ok and type(list) == "table" and list or {}
+end
+
+local function saveEnchantList(list)
+    if launchConfig then return end
+    local ok = pcall(function()
+        writefile(enchantConfigPath, httpService:JSONEncode(list))
+    end)
+    if not ok then warn("[Enchant UI] Không lưu được danh sách enchant vào config") end
+end
+
 -- 2. Tải các module tính năng
 -- Thêm một URL Raw vào danh sách cho mỗi file xử lý mới.
 local urls = {
@@ -144,7 +165,6 @@ local function buildWebhookTab()
         flag = "WebhookUrl",
         value = "",
         placeholder = "Dán link webhook",
-        forgetState = true,
         callback = function(value)
             if petWebhook then petWebhook.setUrl(value) end
         end,
@@ -176,7 +196,6 @@ local function buildWebhookTab()
         flag = "RankWebhookUrl",
         value = "",
         placeholder = "Dán link webhook rank",
-        forgetState = true,
         callback = function(value)
             if rankWebhook then rankWebhook.setUrl(value) end
         end,
@@ -269,6 +288,18 @@ local function buildAutomaticTab()
         local list = enchantFeature.getList()
         enchantText:Set("enchant : " .. (#list > 0 and table.concat(list, ", ") or "(trống)"))
     end
+
+    -- Khôi phục danh sách trước khi Rayfield có thể bật lại Auto Equip từ config.
+    local savedEnchants = loadEnchantList()
+    if #savedEnchants > 0 then
+        local ok, err = runEnchantInventoryAction(function()
+            for _, name in ipairs(savedEnchants) do
+                if type(name) == "string" then enchantFeature.add(name) end
+            end
+        end)
+        if not ok then warn("[Enchant UI] " .. tostring(err)) end
+        updateEnchantText()
+    end
     automatic:CreateButton({
         name = "add enchant",
         callback = function()
@@ -276,6 +307,7 @@ local function buildAutomaticTab()
             if name then
                 local ok, err = runEnchantInventoryAction(enchantFeature.add, name)
                 if not ok then warn("[Enchant UI] " .. tostring(err)) end
+                if ok and err then saveEnchantList(enchantFeature.getList()) end
             end
             updateEnchantText()
         end,
@@ -284,6 +316,7 @@ local function buildAutomaticTab()
         name = "clear enchant",
         callback = function()
             enchantFeature.clear()
+            saveEnchantList(enchantFeature.getList())
             updateEnchantText()
         end,
     })
