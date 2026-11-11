@@ -210,9 +210,7 @@ features.AutoEquipEnchant = {
         if enchantJob then task.cancel(enchantJob); enchantJob = nil end
         if not on then return end
         local rejected, pending = {}, nil
-        local phase = "check"
         local revision = enchantRevision
-        local inventorySignature
         local rebuild = appliedEnchantRevision ~= nil and appliedEnchantRevision ~= revision
         local rank
         local lastError
@@ -234,7 +232,6 @@ features.AutoEquipEnchant = {
                 revision = enchantRevision
                 rebuild = true
                 table.clear(rejected)
-                phase = "check"
             end
             if rank ~= data.Rank then
                 rank = data.Rank
@@ -243,18 +240,6 @@ features.AutoEquipEnchant = {
             -- Clear button reset danh sách yêu cầu; danh sách rỗng thì dừng equip.
             if #enchantWanted == 0 then return end
             local slots = enchantSlots(data)
-            local items = enchantCandidates()
-            local signature = {tostring(data.Rank), table.concat(slots, ",")}
-            for _, item in ipairs(items) do
-                signature[#signature + 1] = item.uid .. ":" .. item.tier .. ":" .. item.amount
-            end
-            signature = table.concat(signature, "|")
-            if inventorySignature and inventorySignature ~= signature then
-                table.clear(rejected)
-                phase = "check"
-            end
-            inventorySignature = signature
-            local plan = enchantPlan(items, slots, rejected)
             local plan = enchantPlan(enchantCandidates(), slots, rejected)
             if #plan == 0 then return end
 
@@ -267,23 +252,6 @@ features.AutoEquipEnchant = {
                 }
             end
 
-            if phase == "check" then
-                if #plan == 0 then return end -- Chưa có sách phù hợp để thay bộ hiện tại.
-                local matches = true
-                for index, slot in ipairs(slots) do
-                    if equippedAt(data, slot) ~= (plan[index] and plan[index].uid) then
-                        matches = false
-                        break
-                    end
-                end
-                if matches then return end -- Đúng bộ: không gửi remote.
-                phase = "clear"
-            end
-            if phase == "clear" then
-                -- Sai bộ: clear từng ô đang đeo, xác nhận hết rồi mới equip lại.
-                for index = #slots, 1, -1 do
-                    if equippedAt(data, slots[index]) then
-                        send(true, slots[index])
             -- Đổi danh sách thì tháo từng ô trước khi gắn lại theo thứ tự mới.
             -- Mở thêm slot không đổi revision, nên giữ nguyên các ô đã đúng.
             if rebuild then
@@ -293,16 +261,8 @@ features.AutoEquipEnchant = {
                         return
                     end
                 end
-                phase = "equip"
                 rebuild = false
             end
-            if phase == "equip" then
-                for index, entry in ipairs(plan) do
-                    local actual = equippedAt(data, slots[index])
-                    if actual ~= entry.uid then
-                        if actual then phase = "clear"; return end
-                        send(false, slots[index], entry)
-                        return
             appliedEnchantRevision = revision
 
             -- Game tự lấp ô trống đầu tiên. Xử lý từ trái sang phải để giữ
@@ -318,7 +278,6 @@ features.AutoEquipEnchant = {
                     end
                     return
                 end
-                phase = "check"
             end
         end
 
@@ -335,5 +294,4 @@ features.AutoEquipEnchant = {
     end,
 }
 
-return features
 return features
