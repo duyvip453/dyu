@@ -46,10 +46,12 @@ local targetArea = 279
 local waitPosition = Vector3.new(-15044.994140625, 16.23734474182129, 2202.712646484375)
 local hollowPosition = Vector3.new(-15044.8525390625, 16.23734474182129, 2145.985595703125)
 local veilrootPosition = Vector3.new(-14887.7763671875, 17.05313491821289, 2226.709228515625)
+-- Ánh xạ số sao của quest sang độ khó.
 local questTiers = { "Easy", "Medium", "Hard", "Extreme" }
 local questActions = {}
 local questJob
 local activeQuest
+-- Khai báo tính năng Farm dùng để đi tới world và area mục tiêu.
 local travelFeatures = { "FarmTeleToBestArea", "FarmTeleToBestWorld" }
 
 -- Thứ tự trong bảng là priority: 1 được ưu tiên cao nhất.
@@ -69,6 +71,7 @@ local questPriority = {
     { kind = "luckyBlock", verbs = { "break", "trigger" }, keywords = { "lucky block", "lucky blocks" } },
 }
 
+-- So khớp từ khóa nguyên từ trong tiêu đề quest.
 local function hasKeyword(text, keywords)
     for _, keyword in ipairs(keywords) do
         if text:find("%f[%a]" .. keyword .. "%f[^%a]") then return true end
@@ -76,6 +79,7 @@ local function hasKeyword(text, keywords)
     return false
 end
 
+-- Nhận diện loại quest theo bảng ưu tiên.
 local function classifyQuest(title)
     local normalized = title:lower():gsub("ñ", "n"):gsub("Ñ", "n"):gsub("%s+", " ")
     for priority, rule in ipairs(questPriority) do
@@ -86,6 +90,7 @@ local function classifyQuest(title)
     end
 end
 
+-- Tìm area có số lớn nhất đã được mở.
 local function getBestArea()
     if not save.Get() then return nil end
     local best = 0
@@ -97,12 +102,14 @@ local function getBestArea()
     return best
 end
 
+-- Bật hoặc nhả yêu cầu teleport của Auto Rank Quest.
 local function requestTravel(allFeatures, enabled)
     for _, flag in ipairs(travelFeatures) do
         allFeatures[flag].request("rankQuest", enabled)
     end
 end
 
+-- Đưa nhân vật tới điểm cần đứng để làm quest.
 local function goToPosition(position)
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
@@ -126,6 +133,7 @@ local function readGoals()
     return goals
 end
 
+-- Dựng danh sách quest đã sắp theo priority.
 local function rankQuestList(goals)
     local list = {}
     for stars in ipairs(questTiers) do
@@ -148,6 +156,7 @@ local function rankQuestList(goals)
     return list
 end
 
+-- Chọn quest ưu tiên sau khi đủ số ô theo rank.
 local function selectQuest(goals)
     -- Đọc lại rank mỗi lần chọn để tự chuyển từ 3 sang 4 quest khi lên rank 5.
     local data = save.Get()
@@ -213,6 +222,7 @@ local function runQuest(quest, action)
     end
 end
 
+-- Xuất vòng tự chọn và thực hiện quest rank.
 features.RankAutoQuest = {
     duy = function(on, allFeatures)
         if questJob then
@@ -255,6 +265,7 @@ local function inventory(category)
     return data and (data[category] or (data.Inventory and data.Inventory[category])) or {}
 end
 
+-- Chọn stack mở khóa theo cấp và sức chứa yêu cầu.
 local function chooseStack(category, getCapacity)
     local selected, selectedCapacity, selectedTier
     for uid, item in pairs(inventory(category)) do
@@ -270,9 +281,11 @@ local function chooseStack(category, getCapacity)
     return selected, selectedCapacity
 end
 
+-- Ánh xạ số La Mã trong tiêu đề quest sang cấp số.
 local romanTiers = { i = 1, ii = 2, iii = 3, iv = 4, v = 5, vi = 6,
     vii = 7, viii = 8, ix = 9, x = 10, xi = 11 }
 
+-- Đọc cấp vật phẩm cần dùng hoặc nâng từ tiêu đề quest.
 local function readRequiredTier(title, prefix)
     local token = title:lower():match(prefix .. "tier%s+([%w]+)")
     if token then return tonumber(token) or romanTiers[token] end
@@ -292,12 +305,14 @@ function questActions.usePotion(quest)
     return true
 end
 
+-- Gọi máy với UID và số đầu ra cần tạo.
 local function invokeMachine(remote, uid, count)
     local success, reason = net.Invoke(remote, uid, count)
     if not success then return true, reason or "Máy từ chối yêu cầu" end
     return true
 end
 
+-- Khai báo cấu hình máy nâng cấp cho Potion và Enchant.
 local upgradeMachines = {
     Potion = {
         directory = dir.Potions,
@@ -311,6 +326,7 @@ local upgradeMachines = {
     },
 }
 
+-- Tính số đầu ra nâng cấp có thể tạo từ từng stack.
 local function upgradeStacks(category, inputTier, itemId)
     local machine = upgradeMachines[category]
     local stacks = {}
@@ -329,6 +345,7 @@ local function upgradeStacks(category, inputTier, itemId)
     return stacks
 end
 
+-- Gom nhiều stack thành một lô đủ số đầu ra.
 local function buildUpgradeBatch(stacks, count)
     local batch = {}
     for _, stack in ipairs(stacks) do
@@ -374,10 +391,12 @@ local function upgradeExact(quest, category, goalTier, itemId)
     return false, "Chưa đủ nguyên liệu để nâng cấp đủ số lượng trong một lượt"
 end
 
+-- Nâng enchant tới cấp mà quest yêu cầu.
 function questActions.upgradeEnchant(quest)
     return upgradeExact(quest, "Enchant", quest.enchantTier, quest.enchantId)
 end
 
+-- Nâng potion tới cấp mà quest yêu cầu.
 function questActions.upgradePotion(quest)
     return upgradeExact(quest, "Potion", quest.potionTier, quest.potionId)
 end
@@ -409,10 +428,12 @@ local function collectByUpgrading(quest, category)
     return false, lastError or "Chưa đủ nguyên liệu để Collect đúng số lượng"
 end
 
+-- Tạo đúng số Potion còn thiếu cho quest Collect.
 function questActions.collectPotion(quest)
     return collectByUpgrading(quest, "Potion")
 end
 
+-- Tạo đúng số Enchant còn thiếu cho quest Collect.
 function questActions.collectEnchant(quest)
     return collectByUpgrading(quest, "Enchant")
 end
@@ -430,10 +451,12 @@ local function hatch(eggId, position, fastHatch)
     return false
 end
 
+-- Mở Hollow Egg để làm quest Hatch Eggs.
 function questActions.eggs()
     return hatch("Hollow Egg", hollowPosition, true)
 end
 
+-- Mở Veilroot Egg để tìm pet Legendary cho quest.
 function questActions.legendary()
     return hatch("Veilroot Egg", veilrootPosition, true)
 end
@@ -451,6 +474,7 @@ local function petStock(inputType)
     return uid, biggest, total
 end
 
+-- Tạo Wisp Griffin Golden cho quest Make Golden.
 function questActions.makeGolden(quest)
     local remaining = quest.target - quest.current
     local uid, batch, capacity = petStock(0)
@@ -458,6 +482,7 @@ function questActions.makeGolden(quest)
     return invokeMachine("GoldMachine_Activate", uid, math.min(batch, remaining))
 end
 
+-- Tạo Wisp Griffin Rainbow cho quest Make Rainbow.
 function questActions.makeRainbow(quest)
     local remaining = quest.target - quest.current
     local goldenUid, goldenBatch, rainbowCapacity = petStock(1)
@@ -489,18 +514,22 @@ local function summon(position, itemId, remote)
     return false
 end
 
+-- Dùng Comet trong kho để triệu hồi cho quest.
 function questActions.comet()
     return summon(waitPosition, "Comet", "Comet_Spawn")
 end
 
+-- Dùng Basic Coin Jar trong kho để triệu hồi cho quest.
 function questActions.coinJar()
     return summon(waitPosition, "Basic Coin Jar", "CoinJar_Spawn")
 end
 
+-- Dùng Mini Pinata trong kho để triệu hồi cho quest.
 function questActions.pinata()
     return summon(waitPosition, "Mini Pinata", "MiniPinata_Consume")
 end
 
+-- Dùng Mini Lucky Block trong kho để triệu hồi cho quest.
 function questActions.luckyBlock()
     return summon(waitPosition, "Mini Lucky Block", "MiniLuckyBlock_Consume")
 end
@@ -509,6 +538,7 @@ end
 local statsGui
 local statsJob
 
+-- Tính số phần thưởng rank chưa nhận.
 local function rewardProgress(data)
     local id = ranks.RankIDFromNumber(data.Rank)
     local rank = id and dir.Ranks[id]
@@ -531,6 +561,7 @@ local function rewardProgress(data)
     return line
 end
 
+-- Tạo một nhãn chữ co giãn trong Stats GUI.
 local function statsLabel(parent, y, height, maxSize, color)
     local label = Instance.new("TextLabel")
     label.BackgroundTransparency = 1
@@ -550,6 +581,7 @@ local function statsLabel(parent, y, height, maxSize, color)
     return label
 end
 
+-- Xuất toggle hiển thị rank và tiến độ quest toàn màn hình.
 features.RankStatsGui = {
     duy = function(on)
         if statsJob then task.cancel(statsJob); statsJob = nil end
