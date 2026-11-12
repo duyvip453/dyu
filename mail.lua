@@ -34,24 +34,19 @@ features.MailAutoClaim = {
 -- Sửa Class và ID nội bộ của món tại đây. Thứ tự ID trong mỗi nhóm là thứ tự dropdown.
 local giftCatalog = {
     Currency = { "Diamonds" },
-    Pet = { "Wisp Griffin" },
-    Enchant = { "" },
-    Fruit = { "" },
-    Hoverboard = { "" },
-    Misc = { "" },
-    Potion = { "" },
-    Seed = { "" },
-    Ultimate = { "" },
-    XPPotion = { "" },
+    Pet = { "Stingray" },
 }
 
+-- Giữ các dòng Auto Gift theo thứ tự Add Item.
 local rules = {}
 local recipient = ""
 local giftEnabled = false
 local giftJob
 local giftRevision = 0
+-- Quy đổi hậu tố k, m, b và t sang hệ số.
 local suffixes = { [""] = 1, k = 1e3, m = 1e6, b = 1e9, t = 1e12 }
 
+-- Đổi Amount hoặc Keep thành số nguyên hợp lệ.
 local function parseAmount(text)
     local number, suffix = text:lower():gsub(",", ""):match("^%s*(%d+%.?%d*)%s*([kmbt]?)%s*$")
     if not number then return nil end
@@ -60,6 +55,7 @@ local function parseAmount(text)
     return amount
 end
 
+-- Kiểm tra stack có đủ điều kiện gửi qua mail.
 local function canGiftItem(class, entry)
     if entry._lk then return false end
     local ok, tradable = pcall(function()
@@ -68,11 +64,13 @@ local function canGiftItem(class, entry)
     return ok and tradable
 end
 
+-- Lấy kho hiện tại từ Save của client.
 local function giftInventory()
     local data = save.Get()
     return data and data.Inventory or {}, data
 end
 
+-- Tính phí gửi thư theo dữ liệu mailbox của game.
 local function mailFee(data)
     local multiplier = flags.Get(flags.Keys.DiamondSink_MailboxFee_Mult)
     if type(multiplier) ~= "number" or multiplier <= 0 then multiplier = 1 end
@@ -85,6 +83,7 @@ local function mailFee(data)
         math.floor(mailbox.DiamondCostCap * multiplier))
 end
 
+-- Đếm Diamonds có thể dùng để kiểm tra phí.
 local function countDiamonds(inventory)
     local count = 0
     for _, entry in pairs(inventory.Currency or {}) do
@@ -93,6 +92,7 @@ local function countDiamonds(inventory)
     return count
 end
 
+-- Tìm số lượng và stack lớn nhất theo đúng Class và Item ID.
 local function findGiftStock(inventory, rule)
     local stock, largestUid, largest = 0, nil, 0
     for uid, entry in pairs(inventory[rule.class] or {}) do
@@ -105,6 +105,7 @@ local function findGiftStock(inventory, rule)
     return stock, largestUid, largest
 end
 
+-- Gửi một quy tắc Auto Gift theo số lượng khả dụng.
 local function sendRule(rule, revision)
     local remaining
     while giftEnabled and revision == giftRevision do
@@ -114,8 +115,10 @@ local function sendRule(rule, revision)
         local fee = mailFee(data)
         if not uid or countDiamonds(inventory) < fee then break end
         local isDiamonds = rule.class == "Currency" and rule.name == "Diamonds"
+        -- Trừ phần giữ lại và phí Diamonds khỏi lượng có thể gửi.
         local available = stock - rule.keep - (isDiamonds and fee or 0)
         if not remaining then
+            -- Chọn toàn bộ số dư khả dụng khi Keep bằng 0.
             remaining = rule.keep == 0 and available or rule.amount
             if remaining <= 0 or available < remaining then break end
         end
@@ -123,6 +126,7 @@ local function sendRule(rule, revision)
         if quantity <= 0 then break end
         if not giftEnabled or revision ~= giftRevision then break end
 
+        -- Gửi thư với tham số người nhận, tiêu đề, Class, UID và số lượng.
         local ok, accepted = pcall(net.Invoke, "EF_Relay", recipient, "", rule.class, uid, quantity)
         if not ok or not accepted then
             -- Kết quả lỗi có thể tới sau khi server đã xử lý thư. Chờ trước khi đọc lại kho.
@@ -141,6 +145,7 @@ local function sendRule(rule, revision)
     end
 end
 
+-- Duyệt lần lượt các quy tắc gửi quà khi Auto Gift đang bật.
 local function autoGift()
     while giftEnabled do
         local revision = giftRevision
@@ -155,17 +160,20 @@ local function autoGift()
     giftJob = nil
 end
 
+-- Xuất chức năng cấu hình Auto Gift cho tab Mail.
 features.MailAutoGift = {
     setRecipient = function(value)
         local name = value:match("^%s*(.-)%s*$")
         if recipient ~= name then recipient = name; giftRevision += 1 end
     end,
+    -- Liệt kê Class từ bảng giftCatalog.
     getClasses = function()
         local classes = {}
         for class in pairs(giftCatalog) do classes[#classes + 1] = class end
         table.sort(classes)
         return classes
     end,
+    -- Lấy riêng các Item ID của Class đã chọn.
     getNames = function(class)
         return table.clone(giftCatalog[class] or {})
     end,
@@ -182,6 +190,7 @@ features.MailAutoGift = {
         giftRevision += 1
         return true
     end,
+    -- Xóa quy tắc Auto Gift được thêm gần nhất.
     removeLast = function()
         if #rules > 0 then table.remove(rules); giftRevision += 1 end
     end,
