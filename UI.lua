@@ -11,6 +11,7 @@ local startupActions = {}
 local enchantConfigPath = "RobloxHubEnchantList_" .. game:GetService("Players").LocalPlayer.UserId .. ".json"
 local httpService = game:GetService("HttpService")
 
+-- Đọc danh sách enchant đã lưu của tài khoản.
 local function loadEnchantList()
     if launchConfig or type(readfile) ~= "function" then return {} end
     if type(isfile) == "function" and not isfile(enchantConfigPath) then return {} end
@@ -20,6 +21,7 @@ local function loadEnchantList()
     return ok and type(list) == "table" and list or {}
 end
 
+-- Lưu thứ tự Add Enchant vào JSON cục bộ.
 local function saveEnchantList(list)
     if launchConfig then return end
     local ok = pcall(function()
