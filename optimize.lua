@@ -16,12 +16,14 @@ local watchedFolders = setmetatable({}, { __mode = "k" })
 local fogOriginals
 local itemPopupOriginal
 local itemPopupJobRunning = false
+-- Theo dõi khối thay thế của từng vật thể trong zone.
 local objectBoxes = {}
 local damageConnection
 local boxSize = Vector3.new(1.75, 1.75, 1.75)
 local bounceInfo = TweenInfo.new(0.11, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true)
 local invisibleParticles = NumberSequence.new(1)
 
+-- Khai báo các nhóm vật thể được thay bằng khối xám.
 local objectFolders = {
     Breakables = true,
     AnimatedBreakables = true,
@@ -29,6 +31,7 @@ local objectFolders = {
     RandomEvents = true,
 }
 
+-- Tìm vật thể gốc thuộc nhóm đối tượng trong zone.
 local function getZoneObject(instance)
     local current = instance
     while current and current ~= workspace do
@@ -45,6 +48,7 @@ local function getZoneObject(instance)
     return nil
 end
 
+-- Nhận diện nhân vật của người chơi khác.
 local function isOtherCharacter(instance)
     local current = instance
     while current and current.Parent ~= workspace do current = current.Parent end
@@ -53,6 +57,7 @@ local function isOtherCharacter(instance)
     return player ~= nil and player ~= localPlayer
 end
 
+-- Gắn khối xám hiển thị vào part của vật thể.
 local function ensureObjectBox(object)
     local record = objectBoxes[object]
     if record and record.box.Parent then return end
@@ -68,6 +73,7 @@ local function ensureObjectBox(object)
     box.Parent = anchor
 end
 
+-- Dọn khối xám do script tạo cho vật thể.
 local function removeObjectBox(object)
     local record = objectBoxes[object]
     if not record then return end
@@ -75,6 +81,7 @@ local function removeObjectBox(object)
     record.box:Destroy()
 end
 
+-- Làm khối xám nảy khi vật thể nhận sát thương.
 local function connectObjectDamage()
     if damageConnection then return end
     local client = game:GetService("ReplicatedStorage").Library.Client
@@ -92,6 +99,7 @@ local function connectObjectDamage()
     end)
 end
 
+-- Nhận diện tên các thư mục chứa đồ rơi.
 local dropFolderNames = {
     coins = true,
     orbs = true,
@@ -107,12 +115,14 @@ local superVisualFolders = {
     hoverboards = true,
 }
 
+-- Liệt kê nhóm map đặc biệt nằm trực tiếp dưới Workspace.
 local mapRoots = {
     ["PSX Hall"] = true,
     ["PSX Portal"] = true,
     GREYBOX_WIP = true,
 }
 
+-- Liệt kê nhóm map nằm trong Workspace.__THINGS.
 local mapThings = {
     Ornaments = true,
     __FAKE_GROUND = true,
@@ -120,6 +130,7 @@ local mapThings = {
     __FAKE_INSTANCE_BREAK_ZONES = true,
 }
 
+-- Nhận diện hình khối map có thể ẩn trong Super Optimize.
 local function isMapGeometry(instance)
     if not (instance:IsA("BasePart") or instance:IsA("Decal") or instance:IsA("Texture")) then
         return false
@@ -145,6 +156,7 @@ local function isMapGeometry(instance)
     return false
 end
 
+-- Nhận diện thư mục hiển thị theo đúng cây object của game.
 local function getVisualFolderName(instance)
     local parent = instance.Parent
     if not parent or parent.Parent ~= workspace then return nil end
@@ -157,17 +169,20 @@ local function getVisualFolderName(instance)
     return nil
 end
 
+-- Nhận diện thư mục túi quà và hộp quà.
 local function isLootBoxFolder(name)
     name = string.lower(name)
     return name == "lootbags" or name == "lootboxes" or name == "lootbox"
 end
 
+-- Kiểm tra toggle hiện tại có yêu cầu ẩn nhóm đó không.
 local function isFolderDisabled(name)
     if states.super then return true end
     if states.lootBoxes and isLootBoxFolder(name) then return true end
     return states.objects and (name == "coins" or name == "orbs" or name == "currency")
 end
 
+-- Chọn thuộc tính hiển thị cần đổi theo loại instance.
 local function getHiddenProperties(instance)
     if instance:IsA("BasePart") then
         return { { "LocalTransparencyModifier", 1 } }
@@ -193,6 +208,7 @@ local function getHiddenProperties(instance)
     return nil
 end
 
+-- Đổi hiển thị cục bộ có lưu giá trị để khôi phục.
 local function setLocalHidden(instance, hidden)
     local properties = getHiddenProperties(instance)
     if not properties then return end
@@ -216,6 +232,7 @@ local function setLocalHidden(instance, hidden)
     end
 end
 
+-- Nhận diện các instance thuộc nhóm hiệu ứng hiển thị.
 local function isWorldEffect(instance)
     return instance:IsA("BillboardGui") or instance:IsA("SurfaceGui")
         or instance:IsA("ParticleEmitter") or instance:IsA("Trail")
@@ -227,6 +244,7 @@ local function isWorldEffect(instance)
         or instance:IsA("Atmosphere")
 end
 
+-- Kiểm tra instance có nằm trong nhóm đang bị ẩn không.
 local function hasDisabledFolderAncestor(instance)
     local current = instance
     while current and current ~= workspace do
@@ -239,6 +257,7 @@ local function hasDisabledFolderAncestor(instance)
     return false
 end
 
+-- Xác định instance có cần ẩn theo cấu hình hiện tại không.
 local function shouldHide(instance)
     if states.super and isOtherCharacter(instance) then return true end
     if states.objects then
@@ -261,6 +280,7 @@ local function shouldHide(instance)
         or ((states.lootBoxes or states.super) and isWorldEffect(instance))
 end
 
+-- Áp dụng trạng thái hiển thị cho cả cây instance.
 local function applyTree(root)
     setLocalHidden(root, shouldHide(root))
     for _, descendant in ipairs(root:GetDescendants()) do
@@ -268,6 +288,7 @@ local function applyTree(root)
     end
 end
 
+-- Theo dõi object mới được thêm vào thư mục đã nhận diện.
 local function watchFolder(folder)
     if watchedFolders[folder] then return end
     watchedFolders[folder] = true
@@ -277,6 +298,7 @@ local function watchFolder(folder)
     end)
 end
 
+-- Tìm các thư mục hiển thị dưới __THINGS và __DEBRIS.
 local function scanFolders()
     for _, name in ipairs({ "__THINGS", "__DEBRIS" }) do
         local container = workspace:FindFirstChild(name)
@@ -288,6 +310,7 @@ local function scanFolders()
     end
 end
 
+-- Đổi trạng thái sương theo toggle tối ưu.
 local function setFogHidden(hidden)
     if hidden then
         if not fogOriginals then
@@ -305,6 +328,7 @@ local function setFogHidden(hidden)
     end
 end
 
+-- Đồng bộ hiển thị của các instance đang tải.
 local function refreshVisuals()
     scanFolders()
     for folder in pairs(watchedFolders) do
@@ -328,6 +352,7 @@ local function refreshVisuals()
     setFogHidden(states.lootBoxes or states.super)
 end
 
+-- Áp dụng bộ lọc tối ưu cho object mới trong Workspace.
 workspace.DescendantAdded:Connect(function(instance)
     if states.objects and instance:IsA("BasePart") then
         local object = getZoneObject(instance)
@@ -340,22 +365,26 @@ workspace.DescendantAdded:Connect(function(instance)
     end
 end)
 
+-- Dọn khối xám khi vật thể gốc rời Workspace.
 workspace.DescendantRemoving:Connect(function(instance)
     if objectBoxes[instance] then removeObjectBox(instance) end
 end)
 
+-- Áp dụng bộ lọc tối ưu cho hiệu ứng Lighting mới.
 lighting.DescendantAdded:Connect(function(instance)
     if getHiddenProperties(instance) then
         setLocalHidden(instance, shouldHide(instance))
     end
 end)
 
+-- Áp dụng bộ lọc tối ưu cho hiệu ứng UI mới.
 playerGui.DescendantAdded:Connect(function(instance)
     if getHiddenProperties(instance) then
         setLocalHidden(instance, shouldHide(instance))
     end
 end)
 
+-- Đồng bộ tùy chọn Item Popups theo Super Optimize.
 local function syncItemPopups()
     if itemPopupJobRunning then return end
     itemPopupJobRunning = true
@@ -400,6 +429,7 @@ local function syncItemPopups()
     end)
 end
 
+-- Áp dụng thay đổi trạng thái của một toggle Optimize.
 local function updateState(key, enabled)
     states[key] = enabled
     if key == "objects" then
@@ -414,21 +444,71 @@ local function updateState(key, enabled)
     refreshVisuals()
 end
 
+-- Xuất toggle ẩn loot box và hiệu ứng liên quan.
 features.OptimizeDisableLootBoxes = {
     duy = function(enabled)
         updateState("lootBoxes", enabled)
     end,
 }
 
+-- Xuất toggle thay vật thể trong zone bằng khối xám.
 features.OptimizeDisableObjects = {
     duy = function(enabled)
         updateState("objects", enabled)
     end,
 }
 
+-- Xuất toggle tối ưu hiển thị tổng hợp.
 features.OptimizeSuper = {
     duy = function(enabled)
         updateState("super", enabled)
+    end,
+}
+
+-- Lưu giới hạn FPS của client trước khi bật toggle.
+local fpsTarget = 30
+local previousFpsCap
+local fpsEnabled = false
+local setFpsCap = setfpscap or set_fps_cap
+local getFpsCap = getfpscap or get_fps_cap
+
+-- Áp dụng giới hạn FPS qua API của executor.
+local function applyFpsCap(value)
+    if type(setFpsCap) ~= "function" then
+        warn("[FPS Limit] Executor không hỗ trợ giới hạn FPS")
+        return false
+    end
+    local ok, err = pcall(setFpsCap, value)
+    if not ok then warn("[FPS Limit] " .. tostring(err)) end
+    return ok
+end
+
+features.OptimizeFpsLimit = {
+    setTarget = function(value)
+        local fps = tonumber(value)
+        if not fps or fps < 1 or fps > 2000 or fps % 1 ~= 0 then
+            warn("[FPS Limit] Nhập số nguyên từ 1 đến 2000")
+            return
+        end
+        fpsTarget = fps
+        if fpsEnabled then applyFpsCap(fpsTarget) end
+    end,
+    duy = function(enabled)
+        if enabled == fpsEnabled then return end
+        if enabled then
+            local saved = 0
+            if type(getFpsCap) == "function" then
+                local ok, value = pcall(getFpsCap)
+                if ok and type(value) == "number" then saved = value end
+            end
+            if applyFpsCap(fpsTarget) then
+                previousFpsCap = saved
+                fpsEnabled = true
+            end
+        elseif applyFpsCap(previousFpsCap) then
+            previousFpsCap = nil
+            fpsEnabled = false
+        end
     end,
 }
 
