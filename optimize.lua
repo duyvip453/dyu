@@ -488,10 +488,11 @@ features.OptimizeFpsLimit = {
         local fps = tonumber(value)
         if not fps or fps < 1 or fps > 2000 or fps % 1 ~= 0 then
             warn("[FPS Limit] Nhập số nguyên từ 1 đến 2000")
-            return
+            return false
         end
         fpsTarget = fps
         if fpsEnabled then applyFpsCap(fpsTarget) end
+        return true
     end,
     duy = function(enabled)
         if enabled == fpsEnabled then return end
