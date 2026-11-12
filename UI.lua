@@ -150,12 +150,18 @@ local function buildOptimizeTab()
 
     -- Cấu hình giới hạn FPS của client.
     local fpsLimit = features.OptimizeFpsLimit
+    local initialFps = "30"
+    if fpsLimit and launchConfig and launchConfig.fpsTarget ~= nil then
+        if fpsLimit.setTarget(launchConfig.fpsTarget) then
+            initialFps = tostring(tonumber(launchConfig.fpsTarget))
+        end
+    end
     optimize:CreateSection({ name = "FPS" })
     optimize:CreateInput({
         name = "Target FPS",
         flag = "OptimizeFpsTarget",
         numeric = true,
-        value = "30",
+        value = initialFps,
         placeholder = "Nhập FPS mong muốn",
         callback = function(value)
             if fpsLimit then fpsLimit.setTarget(value) end
