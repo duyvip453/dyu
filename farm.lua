@@ -15,6 +15,7 @@ local orb = require(client.OrbCmds.Orb)
 local orbDist = orb.CollectDistance
 local jobs = {}
 
+-- Quản lý một vòng lặp farm theo khóa tính năng.
 local function run(key, on, delay, step)
     if jobs[key] then
         task.cancel(jobs[key])
@@ -32,6 +33,7 @@ local function run(key, on, delay, step)
     end
 end
 
+-- Nhân tốc độ di chuyển của pet thuộc người chơi hiện tại.
 local function boostedSpeedMultiplier(pet)
     local multiplier = originalSpeedMultiplier(pet)
     return pet.owner == player and multiplier * 100 or multiplier
@@ -44,6 +46,7 @@ features.FarmInfinityPetSpeed = {
 }
 
 
+-- Tự đánh một breakable ngẫu nhiên trong zone hiện tại.
 features.FarmAutoTap = {
     duy = function(on)
         run("tap", on, 0.08, function()
@@ -65,6 +68,7 @@ features.FarmAutoTap = {
 }
 
 
+-- Thử mua area kế tiếp mỗi 5 giây.
 features.FarmAutoBuyNextArea = {
     duy = function(on)
         run("buy", on, 5, function()
@@ -77,6 +81,7 @@ features.FarmAutoBuyNextArea = {
     end,
 }
 
+-- Mở rộng bán kính nhặt orb khi bật toggle.
 features.FarmAutoCollectOrb = {
     duy = function(on)
         -- Dùng luồng nhặt có sẵn của game với bán kính lớn hơn.
@@ -87,6 +92,7 @@ features.FarmAutoCollectOrb = {
 -- Mỗi tính năng có thể yêu cầu dịch chuyển mà không tắt toggle của người dùng.
 local function teleportFeature(setEnabled)
     local owners = {}
+    -- Giữ vòng teleport chạy khi còn ít nhất một tính năng yêu cầu.
     local function request(owner, on)
         local wasEnabled = next(owners) ~= nil
         owners[owner] = on and true or nil
@@ -102,6 +108,7 @@ end
 -- Tọa độ cố định được quản lý riêng trong id area.lua.
 local areaData
 local areaDataWarning
+-- Tải bảng tọa độ area từ GitHub và giữ trong phiên.
 local function getAreaData()
     if areaData then return areaData end
     local ok, result = pcall(function()
@@ -141,6 +148,7 @@ end
 -- Chỉ so X/Z; dung sai nhỏ tránh tele lại do sai số tọa độ.
 local areaXZTolerance = 0.1
 
+-- Đưa nhân vật về tọa độ đã lưu của area mục tiêu.
 features.FarmTeleToBestArea = teleportFeature(function(on)
     run("area", on, 3, function()
         local char = player.Character
@@ -190,12 +198,14 @@ local function updSlot(key, on, remote)
     end)
 end
 
+-- Gọi máy mua thêm slot trang bị pet.
 features.FarmAutoPetSlot = {
     duy = function(on)
         updSlot("petSlot", on, "EquipSlotsMachine_RequestPurchase")
     end,
 }
 
+-- Gọi máy mua thêm slot mở trứng.
 features.FarmAutoEggSlot = {
     duy = function(on)
         updSlot("eggSlot", on, "EggHatchSlotsMachine_RequestPurchase")
