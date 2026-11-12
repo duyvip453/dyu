@@ -6,6 +6,7 @@ local net = require(lib.Client.Network)
 local save = require(lib.Client.Save)
 local dir = require(lib.Directory)
 local job
+-- Khai báo ID quà theo thứ tự Auto Open xử lý.
 local giftOrder = {
     "Gift Bag","Large Gift Bag","Mini Chest","Enchant Bundle","Large Enchant Bundle","Potion Bundle","Large Potion Bundle","Toy Bundle",
     "Flag Bundle",
@@ -66,6 +67,7 @@ features.AutoClaimFreeGift = {
 }
 
 -- Automatic / Mở hết từng loại quà đã chọn.
+-- Đếm số lượng còn lại của từng loại quà đã chọn.
 local function readGiftAmounts()
     local data = save.Get()
     if not data then return nil end
@@ -81,6 +83,7 @@ local function readGiftAmounts()
     return amounts
 end
 
+-- Mở từng món cho tới khi hết loại quà đang xử lý.
 local function openSelectedGifts()
     local current
     local retryDelay = 0.25
@@ -125,6 +128,7 @@ local function openSelectedGifts()
     giftJob = nil
 end
 
+-- Xuất tính năng tự mở quà cho tab Automatic.
 features.AutoOpenGifts = {
     getOptions = function() return table.clone(giftOrder) end,
     setSelection = function(values)
@@ -144,16 +148,19 @@ features.AutoOpenGifts = {
 -- Automatic / Enchant: thứ tự Add là thứ tự equip, tên trùng là nhiều quyển.
 local enchantItems = require(lib.Items.EnchantItem)
 local enchantCmds = require(lib.Client.EnchantCmds)
+-- Giữ danh sách sách theo thứ tự Add.
 local enchantWanted = {}
 local enchantRevision = 0
 local appliedEnchantRevision
 local enchantJob
 
+-- Đọc UID đang trang bị ở một slot enchant.
 local function equippedAt(data, slot)
     local equipped = data.EquippedEnchants or {}
     return equipped[tostring(slot)] or equipped[slot]
 end
 
+-- Liệt kê slot enchant đã mở theo thứ tự equip.
 local function enchantSlots(data)
     local slots = {}
     for slot = 1, enchantCmds.GetMaxEquippedEnchants() do slots[#slots + 1] = slot end
@@ -161,6 +168,7 @@ local function enchantSlots(data)
     return slots
 end
 
+-- Xếp các stack enchant trong kho từ cấp cao xuống thấp.
 local function enchantCandidates()
     local items = {}
     for uid, item in pairs(enchantItems:All()) do
@@ -193,6 +201,7 @@ local function enchantPlan(items, slots, rejected)
     return plan
 end
 
+-- Xuất tính năng trang bị theo danh sách Add Enchant.
 features.AutoEquipEnchant = {
     getNames = function() return table.clone(enchantOrder) end,
     getList = function() return table.clone(enchantWanted) end,
@@ -215,6 +224,7 @@ features.AutoEquipEnchant = {
         local rank
         local lastError
 
+        -- Đồng bộ bộ enchant đang đeo với danh sách yêu cầu.
         local function step()
             local data = save.Get()
             if not data then return end
@@ -243,6 +253,7 @@ features.AutoEquipEnchant = {
             local plan = enchantPlan(enchantCandidates(), slots, rejected)
             if #plan == 0 then return end
 
+            -- Gửi một thao tác slot và đánh dấu đang chờ xác nhận.
             local function send(clear, slot, entry)
                 if clear then net.Fire("Enchants_ClearSlot", slot)
                 else net.Fire("Enchants_Equip", entry.uid) end
@@ -254,6 +265,7 @@ features.AutoEquipEnchant = {
 
             -- Đổi danh sách thì tháo từng ô trước khi gắn lại theo thứ tự mới.
             -- Mở thêm slot không đổi revision, nên giữ nguyên các ô đã đúng.
+            -- Tháo lần lượt các ô khi danh sách yêu cầu thay đổi.
             if rebuild then
                 for _, slot in ipairs(slots) do
                     if equippedAt(data, slot) then
