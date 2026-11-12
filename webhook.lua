@@ -8,12 +8,15 @@ local petItem = require(library.Items.PetItem)
 local exist = require(library.Client.GlobalExistCmds)
 local rap = require(library.Client.RAPCmds)
 
+-- Khai báo các loại pet có thể chọn để nhận thông báo.
 local eventOptions = { "Huge", "Titanic", "Gargantuan" }
 local selected = {}
 local webhookUrl = ""
 local watchJob
+-- Giữ URL ảnh đã tra theo ID asset Roblox.
 local thumbnails = {}
 
+-- Phân loại pet theo cờ Huge, Titanic hoặc Gargantuan.
 local function petCategory(definition)
     if definition.gargantuan then return "Gargantuan" end
     if definition.titanic then return "Titanic" end
@@ -44,12 +47,14 @@ local function readPets()
     return snapshot
 end
 
+-- Định dạng số Exist và RAP có dấu phân cách hàng nghìn.
 local function formatNumber(value)
     if type(value) ~= "number" then return "Chưa có dữ liệu" end
     local digits = string.format("%.0f", value)
     return (digits:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
 end
 
+-- Đổi ID asset của pet sang URL ảnh dùng trong Discord.
 local function thumbnailUrl(icon)
     local id = type(icon) == "string" and icon:match("^rbxassetid://(%d+)$")
     if not id then return nil end
@@ -66,6 +71,7 @@ local function thumbnailUrl(icon)
     end
 end
 
+-- Dựng embed thông báo pet với dữ liệu theo biến thể.
 local function buildDropPayload(record)
     local item = petItem(record.id):SetType(record.petType):SetShiny(record.shiny)
     local embed = {
@@ -79,6 +85,7 @@ local function buildDropPayload(record)
     return { embeds = { embed }, allowed_mentions = { parse = {} } }
 end
 
+-- Gửi payload JSON tới URL Discord và kiểm tra mã HTTP.
 local function postWebhook(url, buildPayload, value)
     if not url:match("^https://discord%.com/api/webhooks/%d+/[%w_-]+$") then
         return false, "Hãy nhập URL webhook Discord hợp lệ"
@@ -103,10 +110,12 @@ local function postWebhook(url, buildPayload, value)
     return true
 end
 
+-- Gửi thông báo pet tới URL webhook chung.
 local function postDrop(record)
     return postWebhook(webhookUrl, buildDropPayload, record)
 end
 
+-- Báo khi số lượng pet thuộc loại đã chọn tăng.
 local function watchDrops()
     local previous
     while true do
@@ -127,6 +136,7 @@ local function watchDrops()
     end
 end
 
+-- Xuất chức năng cấu hình và bật webhook báo pet.
 features.WebhookEnabled = {
     getOptions = function() return table.clone(eventOptions) end,
     setUrl = function(value) webhookUrl = value:match("^%s*(.-)%s*$") end,
@@ -175,8 +185,10 @@ features.WebhookEnabled = {
 local rankWebhookUrl = ""
 local targetRank
 local rankJob
+-- Ghi nhớ các cặp URL và mốc rank đã báo trong phiên.
 local notifiedRanks = {}
 
+-- Dựng embed báo mốc rank theo mẫu đã chọn.
 local function buildRankPayload(rank)
     return {
         embeds = {{
@@ -188,6 +200,7 @@ local function buildRankPayload(rank)
     }
 end
 
+-- Theo dõi rank hiện tại để gửi khi đạt mốc.
 local function watchRank()
     while true do
         local url, target = rankWebhookUrl, targetRank
@@ -210,8 +223,10 @@ local function watchRank()
     end
 end
 
+-- Xuất chức năng cấu hình và bật Webhook Rank.
 features.RankWebhookEnabled = {
     setUrl = function(value) rankWebhookUrl = value:match("^%s*(.-)%s*$") end,
+    -- Nhận rank mục tiêu là số nguyên dương.
     setTarget = function(value)
         local number = tonumber(value)
         targetRank = number and number >= 1 and number < math.huge and number % 1 == 0 and number or nil
