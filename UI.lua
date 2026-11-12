@@ -13,7 +13,10 @@ local httpService = game:GetService("HttpService")
 
 -- Đọc danh sách enchant đã lưu của tài khoản.
 local function loadEnchantList()
-    if launchConfig or type(readfile) ~= "function" then return {} end
+    if launchConfig then
+        return type(launchConfig.enchants) == "table" and launchConfig.enchants or {}
+    end
+    if type(readfile) ~= "function" then return {} end
     if type(isfile) == "function" and not isfile(enchantConfigPath) then return {} end
     local ok, list = pcall(function()
         return httpService:JSONDecode(readfile(enchantConfigPath))
@@ -41,6 +44,7 @@ local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/main/webhook.lua",
 }
 
+-- Gộp tính năng từ các module theo tên flag.
 local features = {}
 for _, url in ipairs(urls) do
     local filename = url:match("[^/]+$")
@@ -68,6 +72,7 @@ local window = Rayfield:CreateWindow({
     },
 })
 
+-- Khai báo các tab theo thứ tự xuất hiện trên menu.
 window:CreateTab({ name = "Stats" })
 local farm = window:CreateTab({ name = "farm" })
 local optimize = window:CreateTab({ name = "optimize" })
@@ -80,9 +85,11 @@ local webhook = window:CreateTab({ name = "webhook" })
 window:CreateTab({ name = "setting" })
 
 -- 4. Hàm tạo toggle và tiện ích nền
+-- Nối toggle Rayfield với tính năng cùng flag.
 local function createToggle(tab, name, flag)
     local initial = launchToggles[flag] == true
     local applied = false
+    -- Áp dụng trạng thái bật tắt từ giao diện hoặc launcher.
     local function apply(enabled)
         local feature = features[flag]
         if feature and (not launchConfig or applied ~= enabled) then
@@ -132,6 +139,7 @@ end
 -- 5. Các tab cấu hình và tiện ích
 
 
+-- Tạo các toggle tối ưu hiển thị.
 local function buildOptimizeTab()
     optimize:CreateSection({ name = "Loot boxes" })
     createToggle(optimize, "disable loot boxes", "OptimizeDisableLootBoxes")
@@ -141,6 +149,7 @@ local function buildOptimizeTab()
     createToggle(optimize, "super optimize", "OptimizeSuper")
 end
 
+-- Tạo giao diện nhận thư và cấu hình gửi quà.
 local function buildMailTab()
     createToggle(mail, "Tự nhận thư", "MailAutoClaim")
     local gift = features.MailAutoGift
@@ -154,6 +163,7 @@ local function buildMailTab()
     })
 
     local selectedClass, itemDropdown
+    -- Đổi danh sách Item ID theo Class đang chọn.
     local function selectClass(class)
         local changed = selectedClass ~= nil and selectedClass ~= class
         selectedClass = class
@@ -190,6 +200,7 @@ local function buildMailTab()
         placeholder = "Ví dụ: 10k hoặc 0",
     })
     local giftText = mail:CreateText({ text = "Danh sách gift: (trống)" })
+    -- Hiện mỗi quy tắc gửi quà trên một dòng.
     local function updateGiftText()
         local lines = {}
         for _, rule in ipairs(gift.getList()) do
@@ -214,6 +225,7 @@ local function buildMailTab()
     createToggle(mail, "auto gift", "MailAutoGift")
 end
 
+-- Tạo giao diện cấu hình webhook.
 local function buildWebhookTab()
     -- Webhook chung: URL, loại thông báo và nút điều khiển.
     local petWebhook = features.WebhookEnabled
@@ -248,11 +260,14 @@ local function buildWebhookTab()
 
     -- Webhook Rank dùng URL và cấu hình riêng.
     local rankWebhook = features.RankWebhookEnabled
+    local rankPreset = launchConfig and type(launchConfig.rankWebhook) == "table" and launchConfig.rankWebhook or {}
+    local initialRankUrl = type(rankPreset.url) == "string" and rankPreset.url or ""
+    local initialRankTarget = rankPreset.target ~= nil and tostring(rankPreset.target) or ""
     webhook:CreateSection({ name = "webhook rank" })
     webhook:CreateInput({
         name = "Rank Webhook URL",
         flag = "RankWebhookUrl",
-        value = "",
+        value = initialRankUrl,
         placeholder = "Dán link webhook rank",
         callback = function(value)
             if rankWebhook then rankWebhook.setUrl(value) end
@@ -262,12 +277,16 @@ local function buildWebhookTab()
         name = "Target Rank",
         flag = "RankWebhookTarget",
         numeric = true,
-        value = "",
+        value = initialRankTarget,
         placeholder = "Nhập rank để kích hoạt",
         callback = function(value)
             if rankWebhook then rankWebhook.setTarget(value) end
         end,
     })
+    if rankWebhook and launchConfig then
+        rankWebhook.setUrl(initialRankUrl)
+        rankWebhook.setTarget(initialRankTarget)
+    end
     createToggle(webhook, "Start Rank Webhook", "RankWebhookEnabled")
     webhook:CreateButton({
         name = "Test Rank Webhook",
@@ -277,6 +296,7 @@ local function buildWebhookTab()
     })
 end
 
+-- Tạo các nhóm giao diện giao dịch.
 local function buildTradingTab()
     local boothSnipe = trading:CreateGroup({ direction = "column" })
     boothSnipe:CreateSection({ name = "Săn món ở gian hàng" })
@@ -288,6 +308,7 @@ end
 -- 6. Các tab tính năng thường xuyên mở rộng
 
 
+-- Tạo giao diện cho các tính năng farm.
 local function buildFarmTab()
     -- Farm và di chuyển
     createToggle(farm, "inf pet speed", "FarmInfinityPetSpeed")
@@ -303,6 +324,7 @@ local function buildFarmTab()
     createToggle(farm, "auto upd egg slot", "FarmAutoEggSlot")
 end
 
+-- Tạo giao diện cho các tính năng rank.
 local function buildRankTab()
     createToggle(rank, "auto claim rank reward", "RankAutoClaimReward")
     rank:CreateSection({ name = "auto quest" })
@@ -310,6 +332,7 @@ local function buildRankTab()
     createToggle(rank, "stats gui", "RankStatsGui")
 end
 
+-- Tạo giao diện cho các tính năng tự động.
 local function buildAutomaticTab()
     -- Nhận quà online
     createToggle(automatic, "auto claim free gift", "AutoClaimFreeGift")
@@ -332,6 +355,7 @@ local function buildAutomaticTab()
         callback = function(value) selectedEnchant = value end,
     })
     local enchantText = automatic:CreateText({ text = "enchant : (trống)" })
+    -- Hiện sách theo đúng thứ tự trong danh sách Add Enchant.
     local function updateEnchantText()
         local list = enchantFeature.getList()
         enchantText:Set("enchant : " .. (#list > 0 and table.concat(list, ", ") or "(trống)"))
@@ -381,11 +405,16 @@ local function buildAutomaticTab()
     local giftOptions = giftFeature and giftFeature.getOptions and giftFeature.getOptions()
         or { "Gift Bag", "Large Gift Bag", "Mini Chest" }
     local initialGifts = {}
-    if launchConfig and type(launchConfig.gifts) == "table" then
+    if launchConfig then
+        local giftPreset = launchConfig.gifts
         for _, id in ipairs(giftOptions) do
-            if table.find(launchConfig.gifts, id) then table.insert(initialGifts, id) end
+            if type(id) == "string" and id:find("%S")
+                and (giftPreset == "all" or (type(giftPreset) == "table" and table.find(giftPreset, id))) then
+                table.insert(initialGifts, id)
+            end
         end
     end
+    -- Chuyển các loại quà đã chọn sang module Automatic.
     local function setGiftSelection(values)
         local feature = features.AutoOpenGifts
         if feature then feature.setSelection(values) end
@@ -413,5 +442,6 @@ buildRankTab()
 buildWebhookTab()
 buildAutomaticTab()
 
+-- Áp dụng các toggle được launcher đặt sẵn.
 for _, start in ipairs(startupActions) do start() end
 startAntiAfk()
