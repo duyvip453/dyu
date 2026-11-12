@@ -147,6 +147,21 @@ local function buildOptimizeTab()
     createToggle(optimize, "disable objects", "OptimizeDisableObjects")
     optimize:CreateSection({ name = "Combined" })
     createToggle(optimize, "super optimize", "OptimizeSuper")
+
+    -- Cấu hình giới hạn FPS của client.
+    local fpsLimit = features.OptimizeFpsLimit
+    optimize:CreateSection({ name = "FPS" })
+    optimize:CreateInput({
+        name = "Target FPS",
+        flag = "OptimizeFpsTarget",
+        numeric = true,
+        value = "30",
+        placeholder = "Nhập FPS mong muốn",
+        callback = function(value)
+            if fpsLimit then fpsLimit.setTarget(value) end
+        end,
+    })
+    createToggle(optimize, "Limit FPS", "OptimizeFpsLimit")
 end
 
 -- Tạo giao diện nhận thư và cấu hình gửi quà.
