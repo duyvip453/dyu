@@ -10,30 +10,36 @@ if type(launchConfig) ~= "table" then launchConfig = nil end
 local launchToggles = launchConfig and type(launchConfig.toggles) == "table" and launchConfig.toggles or {}
 local startupActions = {}
 
--- Danh sách Add Enchant không phải control có flag, nên lưu riêng theo tài khoản.
-local enchantConfigPath = "RobloxHubEnchantList_" .. game:GetService("Players").LocalPlayer.UserId .. ".json"
-local httpService = game:GetService("HttpService")
-
--- Đọc danh sách enchant đã lưu của tài khoản.
-local function loadEnchantList()
-    if launchConfig then
-        return type(launchConfig.enchants) == "table" and launchConfig.enchants or {}
+-- Anti-AFK / Nhảy mỗi phút ngay khi script khởi động.
+do
+    -- Dừng vòng nhảy của lần chạy trước.
+    if environment.RobloxHubAntiAfkJob then
+        pcall(task.cancel, environment.RobloxHubAntiAfkJob)
     end
-    if type(readfile) ~= "function" then return {} end
-    if type(isfile) == "function" and not isfile(enchantConfigPath) then return {} end
-    local ok, list = pcall(function()
-        return httpService:JSONDecode(readfile(enchantConfigPath))
-    end)
-    return ok and type(list) == "table" and list or {}
-end
 
--- Lưu thứ tự Add Enchant vào JSON cục bộ.
-local function saveEnchantList(list)
-    if launchConfig then return end
-    local ok = pcall(function()
-        writefile(enchantConfigPath, httpService:JSONEncode(list))
+    -- Gỡ listener chuột ảo của bản cũ.
+    if environment.RobloxHubAntiAfkConnection then
+        environment.RobloxHubAntiAfkConnection:Disconnect()
+        environment.RobloxHubAntiAfkConnection = nil
+    end
+
+    local player = game:GetService("Players").LocalPlayer
+
+    -- Chuyển Humanoid sang trạng thái nhảy bằng API dùng chung trên PC và mobile.
+    local function jump()
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.Health > 0 then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+
+    environment.RobloxHubAntiAfkJob = task.defer(function()
+        while true do
+            task.wait(60)
+            jump()
+        end
     end)
-    if not ok then warn("[Enchant UI] Không lưu được danh sách enchant vào config") end
 end
 
 -- 2. Tải các module tính năng
@@ -92,7 +98,7 @@ local automatic = window:CreateTab({ name = "automatic" })
 local webhook = window:CreateTab({ name = "webhook" })
 window:CreateTab({ name = "setting" })
 
--- 4. Hàm tạo toggle và tiện ích nền
+-- 4. Hàm tạo toggle dùng chung
 -- Nối toggle Rayfield với tính năng cùng flag.
 local function createToggle(tab, name, flag)
     local initial = launchToggles[flag] == true
@@ -115,49 +121,26 @@ local function createToggle(tab, name, flag)
     if initial then table.insert(startupActions, function() apply(true) end) end
 end
 
--- Đọc kho ở luồng riêng để giữ quyền tạo UI của Rayfield.
-local function runInventoryAction(action, ...)
-    local result
-    task.spawn(function(...)
-        result = table.pack(pcall(action, ...))
-    end, ...)
-    while not result do task.wait() end
-    return table.unpack(result, 1, result.n)
+-- 5. Cấu hình các tab
+
+-- Tạo giao diện cho các tính năng farm.
+do
+    -- Farm và di chuyển
+    createToggle(farm, "inf pet speed", "FarmInfinityPetSpeed")
+    createToggle(farm, "fast farm", "FarmFastFarm")
+    createToggle(farm, "auto tap", "FarmAutoTap")
+    createToggle(farm, "Tự nhặt orb", "FarmAutoCollectOrb")
+    createToggle(farm, "tele to best area", "FarmTeleToBestArea")
+    createToggle(farm, "tele to best world", "FarmTeleToBestWorld")
+    createToggle(farm, "auto buy next area", "FarmAutoBuyNextArea")
+
+    farm:CreateSection({ name = "Nâng cấp slot" })
+    createToggle(farm, "auto upd pet slot", "FarmAutoPetSlot")
+    createToggle(farm, "auto upd egg slot", "FarmAutoEggSlot")
 end
-
--- Cho nhân vật nhảy bằng Humanoid trên PC và mobile.
-local function jumpForAntiAfk(player)
-    local character = player.Character
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if humanoid then humanoid.Jump = true end
-end
-
--- Khởi động một vòng nhảy mỗi phút cho phiên hiện tại.
-local function startAntiAfk()
-    -- Ngừng vòng nhảy cũ khi chạy lại script.
-    if environment.RobloxHubAntiAfkJob then
-        pcall(task.cancel, environment.RobloxHubAntiAfkJob)
-    end
-    -- Gỡ listener idle từ bản dùng chuột ảo.
-    if environment.RobloxHubAntiAfkConnection then
-        environment.RobloxHubAntiAfkConnection:Disconnect()
-        environment.RobloxHubAntiAfkConnection = nil
-    end
-
-    local player = game:GetService("Players").LocalPlayer
-    environment.RobloxHubAntiAfkJob = task.defer(function()
-        while true do
-            task.wait(60)
-            jumpForAntiAfk(player)
-        end
-    end)
-end
-
--- 5. Các tab cấu hình và tiện ích
-
 
 -- Tạo các toggle tối ưu hiển thị.
-local function buildOptimizeTab()
+do
     optimize:CreateSection({ name = "Loot boxes" })
     createToggle(optimize, "disable loot boxes", "OptimizeDisableLootBoxes")
     optimize:CreateSection({ name = "Dropped objects" })
@@ -188,7 +171,7 @@ local function buildOptimizeTab()
 end
 
 -- Tạo giao diện nhận thư và cấu hình gửi quà.
-local function buildMailTab()
+do
     createToggle(mail, "Tự nhận thư", "MailAutoClaim")
     local gift = features.MailAutoGift
     if not gift then return end
@@ -263,8 +246,25 @@ local function buildMailTab()
     createToggle(mail, "auto gift", "MailAutoGift")
 end
 
+-- Tạo các nhóm giao diện giao dịch.
+do
+    local boothSnipe = trading:CreateGroup({ direction = "column" })
+    boothSnipe:CreateSection({ name = "Săn món ở gian hàng" })
+
+    local boothSeller = trading:CreateGroup({ direction = "column" })
+    boothSeller:CreateSection({ name = "Bán ở gian hàng" })
+end
+
+-- Tạo giao diện cho các tính năng rank.
+do
+    createToggle(rank, "auto claim rank reward", "RankAutoClaimReward")
+    rank:CreateSection({ name = "auto quest" })
+    createToggle(rank, "auto rank quest", "RankAutoQuest")
+    createToggle(rank, "stats gui", "RankStatsGui")
+end
+
 -- Tạo giao diện cấu hình webhook.
-local function buildWebhookTab()
+do
     -- Webhook chung: URL, loại thông báo và nút điều khiển.
     local petWebhook = features.WebhookEnabled
     webhook:CreateSection({ name = "webhook" })
@@ -334,44 +334,44 @@ local function buildWebhookTab()
     })
 end
 
--- Tạo các nhóm giao diện giao dịch.
-local function buildTradingTab()
-    local boothSnipe = trading:CreateGroup({ direction = "column" })
-    boothSnipe:CreateSection({ name = "Săn món ở gian hàng" })
-
-    local boothSeller = trading:CreateGroup({ direction = "column" })
-    boothSeller:CreateSection({ name = "Bán ở gian hàng" })
-end
-
--- 6. Các tab tính năng thường xuyên mở rộng
-
-
--- Tạo giao diện cho các tính năng farm.
-local function buildFarmTab()
-    -- Farm và di chuyển
-    createToggle(farm, "inf pet speed", "FarmInfinityPetSpeed")
-    createToggle(farm, "fast farm", "FarmFastFarm")
-    createToggle(farm, "auto tap", "FarmAutoTap")
-    createToggle(farm, "Tự nhặt orb", "FarmAutoCollectOrb")
-    createToggle(farm, "tele to best area", "FarmTeleToBestArea")
-    createToggle(farm, "tele to best world", "FarmTeleToBestWorld")
-    createToggle(farm, "auto buy next area", "FarmAutoBuyNextArea")
-
-    farm:CreateSection({ name = "Nâng cấp slot" })
-    createToggle(farm, "auto upd pet slot", "FarmAutoPetSlot")
-    createToggle(farm, "auto upd egg slot", "FarmAutoEggSlot")
-end
-
--- Tạo giao diện cho các tính năng rank.
-local function buildRankTab()
-    createToggle(rank, "auto claim rank reward", "RankAutoClaimReward")
-    rank:CreateSection({ name = "auto quest" })
-    createToggle(rank, "auto rank quest", "RankAutoQuest")
-    createToggle(rank, "stats gui", "RankStatsGui")
-end
-
 -- Tạo giao diện cho các tính năng tự động.
-local function buildAutomaticTab()
+do
+    -- Danh sách Add Enchant không phải control có flag, nên lưu riêng theo tài khoản.
+    local enchantConfigPath = "RobloxHubEnchantList_" .. game:GetService("Players").LocalPlayer.UserId .. ".json"
+    local httpService = game:GetService("HttpService")
+
+    -- Đọc danh sách enchant đã lưu của tài khoản.
+    local function loadEnchantList()
+        if launchConfig then
+            return type(launchConfig.enchants) == "table" and launchConfig.enchants or {}
+        end
+        if type(readfile) ~= "function" then return {} end
+        if type(isfile) == "function" and not isfile(enchantConfigPath) then return {} end
+        local ok, list = pcall(function()
+            return httpService:JSONDecode(readfile(enchantConfigPath))
+        end)
+        return ok and type(list) == "table" and list or {}
+    end
+
+    -- Lưu thứ tự Add Enchant vào JSON cục bộ.
+    local function saveEnchantList(list)
+        if launchConfig then return end
+        local ok = pcall(function()
+            writefile(enchantConfigPath, httpService:JSONEncode(list))
+        end)
+        if not ok then warn("[Enchant UI] Không lưu được danh sách enchant vào config") end
+    end
+
+    -- Đọc kho ở luồng riêng để giữ quyền tạo UI của Rayfield.
+    local function runInventoryAction(action, ...)
+        local result
+        task.spawn(function(...)
+            result = table.pack(pcall(action, ...))
+        end, ...)
+        while not result do task.wait() end
+        return table.unpack(result, 1, result.n)
+    end
+
     -- Nhận quà online
     createToggle(automatic, "auto claim free gift", "AutoClaimFreeGift")
 
@@ -470,16 +470,6 @@ local function buildAutomaticTab()
     createToggle(automatic, "auto open gifts", "AutoOpenGifts")
 end
 
--- 7. Khởi động UI và áp dụng cấu hình
--- Giữ thứ tự tạo control và chạy các toggle từ launcher như bản cũ.
-buildFarmTab()
-buildOptimizeTab()
-buildMailTab()
-buildTradingTab()
-buildRankTab()
-buildWebhookTab()
-buildAutomaticTab()
-
+-- 6. Áp dụng cấu hình khởi chạy
 -- Áp dụng các toggle được launcher đặt sẵn.
 for _, start in ipairs(startupActions) do start() end
-startAntiAfk()
