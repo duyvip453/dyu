@@ -125,36 +125,30 @@ local function runInventoryAction(action, ...)
     return table.unpack(result, 1, result.n)
 end
 
+-- Cho nhân vật nhảy bằng Humanoid trên PC và mobile.
+local function jumpForAntiAfk(player)
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid then humanoid.Jump = true end
+end
+
+-- Khởi động một vòng nhảy mỗi phút cho phiên hiện tại.
 local function startAntiAfk()
-    -- Dọn vòng tự nhảy của phiên bản cũ khi exec lại.
+    -- Ngừng vòng nhảy cũ khi chạy lại script.
     if environment.RobloxHubAntiAfkJob then
         pcall(task.cancel, environment.RobloxHubAntiAfkJob)
-        environment.RobloxHubAntiAfkJob = nil
     end
-    -- Thay listener cũ để mỗi sự kiện idle chỉ được xử lý một lần.
+    -- Gỡ listener idle từ bản dùng chuột ảo.
     if environment.RobloxHubAntiAfkConnection then
         environment.RobloxHubAntiAfkConnection:Disconnect()
+        environment.RobloxHubAntiAfkConnection = nil
     end
 
     local player = game:GetService("Players").LocalPlayer
-    local warned = false
-    -- Gửi input chuột khi Roblox báo nhân vật đang idle.
-    environment.RobloxHubAntiAfkConnection = player.Idled:Connect(function()
-        local ok = pcall(function()
-            local virtualUser = game:GetService("VirtualUser")
-            virtualUser:CaptureController()
-            virtualUser:ClickButton2(Vector2.zero)
-        end)
-        if not ok then
-            ok = pcall(function()
-                local input = game:GetService("VirtualInputManager")
-                input:SendMouseButtonEvent(0, 0, 1, true, game, 0)
-                input:SendMouseButtonEvent(0, 0, 1, false, game, 0)
-            end)
-        end
-        if not ok and not warned then
-            warned = true
-            warn("[Anti-AFK] Executor không gửi được input mô phỏng")
+    environment.RobloxHubAntiAfkJob = task.defer(function()
+        while true do
+            task.wait(60)
+            jumpForAntiAfk(player)
         end
     end)
 end
