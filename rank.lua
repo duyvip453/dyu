@@ -1,4 +1,4 @@
-- Dùng mốc của UI hoặc thời điểm tải rank khi chạy riêng.
+-- Dùng mốc của UI hoặc thời điểm tải rank khi chạy riêng.
 local startedAt = ...
 local scriptStartedAt = type(startedAt) == "number" and startedAt or os.clock()
 local features = {}
