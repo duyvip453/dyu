@@ -1,4 +1,7 @@
 -- 1. Cấu hình khởi chạy
+-- Ghi thời điểm khởi động trước khi tải các module.
+local scriptStartedAt = os.clock()
+
 -- Launcher có thể truyền cấu hình riêng cho lần chạy này.
 local environment = type(getgenv) == "function" and getgenv() or _G
 local launchConfig = environment.RobloxHubConfig
@@ -52,7 +55,12 @@ for _, url in ipairs(urls) do
     -- Một số client còn nhận bản webhook giữ chỗ rỗng từ cache.
     if filename == "webhook.lua" and not source:find("%S") then continue end
     local loadTab = assert(loadstring(source, "@" .. filename))
-    local moduleFeatures = loadTab()
+    local moduleFeatures
+    if filename == "rank.lua" then
+        moduleFeatures = loadTab(scriptStartedAt)
+    else
+        moduleFeatures = loadTab()
+    end
     assert(type(moduleFeatures) == "table", filename .. " phải trả về bảng features")
     for flag, feature in pairs(moduleFeatures) do
         features[flag] = feature
