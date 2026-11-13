@@ -15,9 +15,10 @@ do
     -- Dừng vòng nhảy của lần chạy trước.
     if environment.RobloxHubAntiAfkJob then
         pcall(task.cancel, environment.RobloxHubAntiAfkJob)
+        environment.RobloxHubAntiAfkJob = nil
     end
 
-    -- Gỡ listener chuột ảo của bản cũ.
+    -- Gỡ kết nối anti-AFK của lần chạy trước.
     if environment.RobloxHubAntiAfkConnection then
         environment.RobloxHubAntiAfkConnection:Disconnect()
         environment.RobloxHubAntiAfkConnection = nil
@@ -34,11 +35,13 @@ do
         end
     end
 
-    environment.RobloxHubAntiAfkJob = task.defer(function()
-        while true do
-            task.wait(60)
-            jump()
-        end
+    local nextJumpAt = os.clock() + 60
+    local runService = game:GetService("RunService")
+    environment.RobloxHubAntiAfkConnection = runService.Heartbeat:Connect(function()
+        local now = os.clock()
+        if now < nextJumpAt then return end
+        nextJumpAt = now + 60
+        jump()
     end)
 end
 
