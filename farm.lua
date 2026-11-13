@@ -45,6 +45,133 @@ features.FarmInfinityPetSpeed = {
     end,
 }
 
+-- Fast Farm dùng đội pet mạnh nhất theo Equip Best.
+local petCmds = require(client.PetCmds)
+local breakableFrontend = require(client.BreakableFrontend)
+local zoneParentType = require(client.Parent.Types.Breakables).ParentType.Zone
+local fastFarmState
+
+-- Xếp breaker trong vòng farm hiện tại theo chest và lượng máu.
+local function fastFarmTargets(zone)
+    local things = workspace:FindFirstChild("__THINGS")
+    local folder = things and things:FindFirstChild("Breakables")
+    local targets = {}
+    if not folder then return targets end
+
+    for _, model in ipairs(folder:GetChildren()) do
+        if model:GetAttribute("ParentType") ~= zoneParentType or model:GetAttribute("ParentID") ~= zone then
+            continue
+        end
+        local uid = model:GetAttribute("BreakableUID")
+        local data = uid and breakableFrontend.Get(uid)
+        if not data or data.health <= 0 or data.disableDamage then continue end
+        local owner = data.modifier and data.modifier.Owner
+        if owner and owner ~= player.Name then continue end
+
+        table.insert(targets, { uid = uid, health = data.health, chest = data.class == "Chest" })
+    end
+    table.sort(targets, function(a, b)
+        if a.chest ~= b.chest then return a.chest end
+        if a.health ~= b.health then return a.health < b.health end
+        return tostring(a.uid) < tostring(b.uid)
+    end)
+    return targets
+end
+
+-- Thu hồi pet còn nhắm vào breaker do Fast Farm gán.
+local function clearFastFarmTargets(pets, assigned)
+    for _, pet in pairs(pets) do
+        local uid = pet.euid and assigned[pet.euid]
+        if uid and pet:GetTargetType() == "Breakable" and pet:GetTargetValue() == uid then
+            pet:ClearTarget()
+        end
+    end
+    table.clear(assigned)
+end
+
+-- Gửi cả đội pet theo lô và ưu tiên giữ mục tiêu còn sống.
+local function fastFarmStep(state)
+    local zone = map.IsInDottedBox() and map.GetCurrentZone() or nil
+    local pets = playerPet.GetByPlayer(player) or {}
+    if zone ~= state.zone then
+        clearFastFarmTargets(pets, state.assigned)
+        state.zone = zone
+    end
+    if not zone then return end
+
+    local now = os.clock()
+    if now >= state.nextEquip then
+        petCmds.EquipBest()
+        state.nextEquip = now + 15
+    end
+
+    local targets = fastFarmTargets(zone)
+    if #targets == 0 then
+        clearFastFarmTargets(pets, state.assigned)
+        return
+    end
+
+    local assigned, eligible, counts, idle = {}, {}, {}, {}
+    for _, target in ipairs(targets) do eligible[target.uid] = true end
+    for _, pet in pairs(pets) do
+        local id = pet.euid
+        if id == nil then continue end
+        local uid = state.assigned[id]
+        if uid and eligible[uid] then
+            assigned[id] = uid
+            counts[uid] = (counts[uid] or 0) + 1
+        else
+            table.insert(idle, id)
+        end
+    end
+    for _, id in ipairs(idle) do
+        local best = targets[1].uid
+        for _, target in ipairs(targets) do
+            if (counts[target.uid] or 0) < (counts[best] or 0) then best = target.uid end
+            if not counts[best] then break end
+        end
+        assigned[id] = best
+        counts[best] = (counts[best] or 0) + 1
+    end
+
+    if not next(assigned) then
+        table.clear(state.assigned)
+        return
+    end
+    local changed = false
+    for id, uid in pairs(assigned) do
+        if state.assigned[id] ~= uid then
+            changed = true
+            break
+        end
+    end
+    if changed or now >= state.nextSend then
+        net.Fire("Breakables_JoinPetBulk", assigned)
+        state.nextSend = now + 1
+    end
+    state.assigned = assigned
+    if not jobs.tap then
+        net.UnreliableFire("Breakables_PlayerDealDamage", targets[1].uid)
+    end
+end
+
+-- Bật Fast Farm từ toggle có sẵn trong tab farm.
+features.FarmFastFarm = {
+    duy = function(on)
+        if on then
+            if fastFarmState then return end
+            local state = { assigned = {}, nextEquip = 0, nextSend = 0 }
+            fastFarmState = state
+            run("fastFarm", true, 0.2, function() fastFarmStep(state) end)
+        elseif fastFarmState then
+            run("fastFarm", false)
+            local state = fastFarmState
+            fastFarmState = nil
+            clearFastFarmTargets(playerPet.GetByPlayer(player) or {}, state.assigned)
+        end
+    end,
+}
+
 
 -- Tự đánh một breakable ngẫu nhiên trong zone hiện tại.
 features.FarmAutoTap = {
