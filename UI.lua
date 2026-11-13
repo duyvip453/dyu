@@ -118,20 +118,35 @@ local function runInventoryAction(action, ...)
 end
 
 local function startAntiAfk()
-    -- Tiện ích nền / Anti-AFK: nhảy mỗi 12 phút, không tạo phần tử giao diện.
-    -- Chạy lại UI thì hủy vòng cũ để không tích lũy nhiều vòng nhảy.
+    -- Dọn vòng tự nhảy của phiên bản cũ khi exec lại.
     if environment.RobloxHubAntiAfkJob then
         pcall(task.cancel, environment.RobloxHubAntiAfkJob)
+        environment.RobloxHubAntiAfkJob = nil
     end
-    environment.RobloxHubAntiAfkJob = task.spawn(function()
-        local player = game:GetService("Players").LocalPlayer
-        while true do
-            task.wait(12 * 60)
-            local character = player.Character
-            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                humanoid.Jump = true
-            end
+    -- Thay listener cũ để mỗi sự kiện idle chỉ được xử lý một lần.
+    if environment.RobloxHubAntiAfkConnection then
+        environment.RobloxHubAntiAfkConnection:Disconnect()
+    end
+
+    local player = game:GetService("Players").LocalPlayer
+    local warned = false
+    -- Gửi input chuột khi Roblox báo nhân vật đang idle.
+    environment.RobloxHubAntiAfkConnection = player.Idled:Connect(function()
+        local ok = pcall(function()
+            local virtualUser = game:GetService("VirtualUser")
+            virtualUser:CaptureController()
+            virtualUser:ClickButton2(Vector2.zero)
+        end)
+        if not ok then
+            ok = pcall(function()
+                local input = game:GetService("VirtualInputManager")
+                input:SendMouseButtonEvent(0, 0, 1, true, game, 0)
+                input:SendMouseButtonEvent(0, 0, 1, false, game, 0)
+            end)
+        end
+        if not ok and not warned then
+            warned = true
+            warn("[Anti-AFK] Executor không gửi được input mô phỏng")
         end
     end)
 end
