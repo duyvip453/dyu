@@ -1,3 +1,6 @@
+- Dùng mốc của UI hoặc thời điểm tải rank khi chạy riêng.
+local startedAt = ...
+local scriptStartedAt = type(startedAt) == "number" and startedAt or os.clock()
 local features = {}
 
 -- Phần dùng chung
@@ -538,6 +541,13 @@ end
 local statsGui
 local statsJob
 
+-- Định dạng thời gian đã chạy theo giờ, phút và giây.
+local function onlineTimeText()
+    local seconds = math.floor(os.clock() - scriptStartedAt)
+    return ("Đã online · %02d:%02d:%02d"):format(
+        math.floor(seconds / 3600), math.floor(seconds / 60) % 60, seconds % 60)
+end
+
 -- Tính số phần thưởng rank chưa nhận.
 local function rewardProgress(data)
     local id = ranks.RankIDFromNumber(data.Rank)
@@ -609,6 +619,8 @@ features.RankStatsGui = {
         local accent = Color3.fromRGB(106, 212, 255)
         local rankLabel = statsLabel(background, 0.09, 0.14, 72, white)
         local rewardsLabel = statsLabel(background, 0.23, 0.07, 26, muted)
+        local onlineLabel = statsLabel(background, 0.30, 0.04, 20, muted)
+        onlineLabel.Text = onlineTimeText()
         statsLabel(background, 0.34, 0.05, 22, accent).Text = "QUEST ĐANG LÀM"
         local activeLabel = statsLabel(background, 0.40, 0.12, 32, white)
         statsLabel(background, 0.57, 0.05, 22, accent).Text = "NHIỆM VỤ HIỆN TẠI"
@@ -621,6 +633,7 @@ features.RankStatsGui = {
         statsGui = gui
         statsJob = task.defer(function()
             while gui.Parent do
+                onlineLabel.Text = onlineTimeText()
                 local data = save.Get()
                 local goals = readGoals()
                 local list = rankQuestList(goals)
