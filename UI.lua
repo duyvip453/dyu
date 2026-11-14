@@ -170,7 +170,31 @@ end
 do
     createToggle(event, "auto open map event", "EventAutoOpenMap")
     createToggle(event, "auto pumpkin", "EventAutoPumpkin")
+    createToggle(event, "auto buy pumkin", "EventAutoBuyPumpkin")
     createToggle(event, "optimize event", "EventOptimize")
+
+    -- Chọn các mục nâng cấp Pumpkin Tycoon.
+    local upgrade = features.EventAutoPumpkinUpgrade
+    if upgrade then
+        local options = upgrade.getOptions()
+        local initial = {}
+        local preset = launchConfig and launchConfig.pumpkinUpgrades
+        if type(preset) == "table" then
+            for _, name in ipairs(options) do
+                if table.find(preset, name) then table.insert(initial, name) end
+            end
+        end
+        event:CreateDropdown({
+            name = "Pumpkin Upgrades",
+            flag = "EventPumpkinUpgradeSelection",
+            options = options,
+            multiSelect = true,
+            value = initial,
+            callback = upgrade.setSelection,
+        })
+        if launchConfig then upgrade.setSelection(initial) end
+        createToggle(event, "auto pumpkin upgrade", "EventAutoPumpkinUpgrade")
+    end
 end
 
 -- Tạo giao diện cho các tính năng farm.
