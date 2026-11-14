@@ -193,7 +193,7 @@ local function buildRankPayload(rank)
     return {
         embeds = {{
             title = "Rank quest completed",
-            description = ("||%s|| **has reached rank %s**\n\nbecause your mom is fat!😂"):format(player.Name, rank),
+            description = ("||%s|| **has reached rank %s**\n\nbecause your mom is fat!😂, nam cũng v"):format(player.Name, rank),
             color = 65464,
         }},
         allowed_mentions = { parse = {} },
