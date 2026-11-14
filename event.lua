@@ -278,4 +278,113 @@ features.EventAutoOpenMap = {
     end,
 }
 
+-- Optimize Event / Chỉ thay đổi hiển thị của Pumpkin Tycoon.
+do
+    local job
+    local original = setmetatable({}, { __mode = "k" })
+    local invisible = NumberSequence.new(1)
+
+    -- Lưu thuộc tính gốc trước khi đổi hiển thị.
+    local function hideProperty(object, property, value)
+        local previous = object[property]
+        if previous == value then return end
+        local record = original[object] or {}
+        if not record[property] then
+            record[property] = { previous = previous, hidden = value }
+            original[object] = record
+        end
+        object[property] = value
+    end
+
+    -- Khôi phục hiển thị khi tắt toggle hoặc rời sự kiện.
+    local function restore()
+        for object, record in pairs(original) do
+            if object.Parent then
+                for property, saved in pairs(record) do
+                    if object[property] == saved.hidden then object[property] = saved.previous end
+                end
+            end
+        end
+        table.clear(original)
+    end
+
+    -- Giữ viền farm, nút thưởng và các part mở khóa.
+    local function hideVisual(object, scope, debrisPosition)
+        local isPart = object:IsA("BasePart")
+        local isSurface = object:IsA("Decal") or object:IsA("Texture")
+        local isParticle = object:IsA("ParticleEmitter")
+        local isEffect = isParticle or object:IsA("Beam") or object:IsA("Trail")
+            or object:IsA("Light") or object:IsA("Smoke") or object:IsA("Fire")
+            or object:IsA("Sparkles")
+        if not (isPart or isSurface or isEffect) then return end
+
+        local wall = false
+        local debrisPart
+        local parent = object
+        while parent and parent ~= scope do
+            local name = string.lower(parent.Name)
+            if name == "buttons" or name == "press" or name == "touch"
+                or name:find("completionreward", 1, true) or name:find("breakzoneline", 1, true)
+                or name:find("pumpkinbreakline", 1, true) then
+                return
+            end
+            if name:find("wall", 1, true) then wall = true end
+            if debrisPosition and not debrisPart and parent:IsA("BasePart") then debrisPart = parent end
+            parent = parent.Parent
+        end
+
+        if debrisPosition then
+            if not isEffect or not debrisPart or (debrisPart.Position - debrisPosition).Magnitude > 220 then return end
+        elseif wall and isPart and object.Transparency < 1 then
+            hideProperty(object, "LocalTransparencyModifier", 1)
+        elseif wall and isSurface then
+            hideProperty(object, "Transparency", 1)
+        end
+
+        if isEffect then hideProperty(object, "Enabled", false) end
+        if isParticle then hideProperty(object, "Transparency", invisible) end
+    end
+
+    -- Quét hiệu ứng mới tải trong các thư mục của sự kiện.
+    local function optimizeEvent()
+        local instance = instancing.Get()
+        if not instance or instance.instanceID ~= instanceId then
+            if next(original) then restore() end
+            return
+        end
+        local function scan(root, debrisPosition)
+            if not root then return end
+            for _, object in ipairs(root:GetDescendants()) do
+                hideVisual(object, root, debrisPosition)
+            end
+        end
+        scan(instance.model)
+        scan(workspace:FindFirstChild("PumpkinTycoonIslands"))
+        scan(workspace:FindFirstChild("PumpkinTycoonPumpkins"))
+        local character = player.Character
+        if character then scan(workspace:FindFirstChild("__DEBRIS"), character:GetPivot().Position) end
+    end
+
+    -- Chạy một vòng tối ưu riêng cho toggle Event.
+    features.EventOptimize = {
+        duy = function(on)
+            if job then
+                if on then return end
+                task.cancel(job)
+                job = nil
+            end
+            if not on then
+                restore()
+                return
+            end
+            job = task.defer(function()
+                while true do
+                    optimizeEvent()
+                    task.wait(1)
+                end
+            end)
+        end,
+    }
+end
+
 return features
