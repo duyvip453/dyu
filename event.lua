@@ -29,6 +29,7 @@ local hatchInterval = 1
 local hatchCounts = {}
 local enabled = false
 local pumpkinEnabled = false
+local fastFarmEnabled = false
 local workerRunning = false
 local generation = 0
 
@@ -161,10 +162,23 @@ local function standInZone(character, humanoid, root, slab, eggPosition)
 end
 
 -- Gửi pet đánh breaker thuộc đúng zone và đảo hiện tại.
+local function clearFarmTargets(state)
+    if not next(state.assigned) then return end
+    for _, pet in pairs(playerPet.GetByPlayer(player) or {}) do
+        local target = pet.euid and state.assigned[pet.euid]
+        if target and pet:GetTargetType() == "Breakable" and pet:GetTargetValue() == target then
+            pet:ClearTarget()
+        end
+    end
+    table.clear(state.assigned)
+    state.nextSend = 0
+end
+
+-- Chia pet theo lô cho breaker trong zone hiện tại.
 local function farmZone(state, zone, plotId)
     local now = os.clock()
     if now < state.nextFarm then return end
-    state.nextFarm = now + 1
+    state.nextFarm = now + (fastFarmEnabled and 0.2 or 1)
     if now >= state.nextEquip then
         petCmds.EquipBest()
         state.nextEquip = now + 15
@@ -179,19 +193,51 @@ local function farmZone(state, zone, plotId)
         if model:GetAttribute("ParentID") == instanceId and model:GetAttribute("AreaID") == area then
             local uid = model:GetAttribute("BreakableUID")
             local data = uid and breakables.Get(uid)
-            if data and data.health > 0 and not data.disableDamage then table.insert(targets, uid) end
+            local owner = data and data.modifier and data.modifier.Owner
+            if data and data.health > 0 and not data.disableDamage and (not owner or owner == player.Name) then
+                table.insert(targets, data)
+            end
         end
     end
-    if #targets == 0 then return end
-    local assigned, index = {}, 0
+    if #targets == 0 then
+        clearFarmTargets(state)
+        return
+    end
+    -- Ưu tiên chest và giữ pet trên breaker còn sống.
+    table.sort(targets, function(a, b)
+        if (a.class == "Chest") ~= (b.class == "Chest") then return a.class == "Chest" end
+        if a.health ~= b.health then return a.health < b.health end
+        return tostring(a.uid) < tostring(b.uid)
+    end)
+    local assigned, eligible, counts, idle = {}, {}, {}, {}
+    for _, target in ipairs(targets) do eligible[target.uid] = true end
     for _, pet in pairs(playerPet.GetByPlayer(player) or {}) do
-        if pet.euid then
-            assigned[pet.euid] = targets[index % #targets + 1]
-            index += 1
+        local id = pet.euid
+        if id then
+            local uid = state.assigned[id]
+            if uid and eligible[uid] then
+                assigned[id] = uid
+                counts[uid] = (counts[uid] or 0) + 1
+            else
+                table.insert(idle, id)
+            end
         end
     end
-    if next(assigned) then network.Fire("Breakables_JoinPetBulk", assigned) end
-    network.UnreliableFire("Breakables_PlayerDealDamage", targets[1])
+    for _, id in ipairs(idle) do
+        local best = targets[1].uid
+        for _, target in ipairs(targets) do
+            if (counts[target.uid] or 0) < (counts[best] or 0) then best = target.uid end
+            if not counts[best] then break end
+        end
+        assigned[id] = best
+        counts[best] = (counts[best] or 0) + 1
+    end
+    if next(assigned) and (#idle > 0 or now >= state.nextSend) then
+        network.Fire("Breakables_JoinPetBulk", assigned)
+        state.nextSend = now + 1
+    end
+    state.assigned = assigned
+    network.UnreliableFire("Breakables_PlayerDealDamage", targets[1].uid)
 end
 
 -- Tìm trứng theo zone và tên cấu hình của game.
@@ -223,6 +269,13 @@ end
 -- Tạm dừng mở pad trong lúc chuẩn bị đủ 15 trứng của zone.
 local function updateEvent(state, character, humanoid, root)
     local zone, slab, plotId, owned = getFarmZone()
+    if not enabled then
+        if zone and slab then
+            standInZone(character, humanoid, root, slab)
+            farmZone(state, zone, plotId)
+        end
+        return
+    end
     if zone and slab then
         local egg
         local waitingForEgg = false
@@ -324,18 +377,27 @@ local function startWorker()
     workerRunning = true
 
     task.defer(function()
-        local state = { retryAt = setmetatable({}, { __mode = "k" }), nextFarm = 0, nextEquip = 0, nextHatch = 0 }
+        local state = {
+            retryAt = setmetatable({}, { __mode = "k" }),
+            assigned = {},
+            nextFarm = 0,
+            nextSend = 0,
+            nextEquip = 0,
+            nextHatch = 0,
+        }
         local nextEntryAt = 0
-        while enabled or pumpkinEnabled do
+        while enabled or pumpkinEnabled or fastFarmEnabled do
             local character = player.Character
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
             local root = humanoid and humanoid.RootPart
+            if not isInEvent() or not (enabled or fastFarmEnabled) then clearFarmTargets(state) end
             if root and humanoid.Health > 0 then
                 if isInEvent() then
                     local pumpkin = pumpkinEnabled and findPumpkin(root.Position)
                     if pumpkin then
+                        clearFarmTargets(state)
                         attackPumpkin(pumpkin, character, humanoid, root)
-                    elseif enabled then
+                    elseif enabled or fastFarmEnabled then
                         local ok, err = pcall(updateEvent, state, character, humanoid, root)
                         if not ok then
                             warn("[Auto Open Map Event] " .. tostring(err))
@@ -347,8 +409,9 @@ local function startWorker()
                     nextEntryAt = os.clock() + entryRetryDelay
                 end
             end
-            task.wait(scanInterval)
+            task.wait(fastFarmEnabled and 0.05 or scanInterval)
         end
+        clearFarmTargets(state)
         workerRunning = false
     end)
 end
@@ -367,6 +430,14 @@ features.EventAutoOpenMap = {
 features.EventAutoPumpkin = {
     duy = function(on)
         pumpkinEnabled = on
+        if on then startWorker() end
+    end,
+}
+
+-- Bật Fast Farm cho zone cao nhất đã mở trên đảo.
+features.EventFastFarm = {
+    duy = function(on)
+        fastFarmEnabled = on
         if on then startWorker() end
     end,
 }
@@ -510,6 +581,16 @@ do
     local job
     local original = setmetatable({}, { __mode = "k" })
     local invisible = NumberSequence.new(1)
+    local protectedGeometry = {
+        ground = true,
+        paths = true,
+        breaks_zones = true,
+        break_zones = true,
+        shorefill = true,
+        safety_net = true,
+        interactable = true,
+        spawnposition = true,
+    }
 
     -- Lưu thuộc tính gốc trước khi đổi hiển thị.
     local function hideProperty(object, property, value)
@@ -536,40 +617,44 @@ do
     end
 
     -- Giữ viền farm, nút thưởng và các part mở khóa.
-    local function hideVisual(object, scope, debrisPosition)
+    local function hideVisual(object, scope, hideScenery, debrisPosition)
         local isPart = object:IsA("BasePart")
         local isSurface = object:IsA("Decal") or object:IsA("Texture")
         local isParticle = object:IsA("ParticleEmitter")
+        local isExplosion = object:IsA("Explosion")
         local isEffect = isParticle or object:IsA("Beam") or object:IsA("Trail")
             or object:IsA("Light") or object:IsA("Smoke") or object:IsA("Fire")
-            or object:IsA("Sparkles")
-        if not (isPart or isSurface or isEffect) then return end
+            or object:IsA("Sparkles") or object:IsA("Highlight")
+        if not (isPart or isSurface or isEffect or isExplosion) then return end
 
-        local wall = false
+        local keepGeometry = not hideScenery
         local debrisPart
         local parent = object
         while parent and parent ~= scope do
             local name = string.lower(parent.Name)
             if name == "buttons" or name == "press" or name == "touch"
                 or name:find("completionreward", 1, true) or name:find("breakzoneline", 1, true)
-                or name:find("pumpkinbreakline", 1, true) then
+                or name:find("pumpkinbreakline", 1, true) or name:find("pumpkinsign", 1, true)
+                or name:find("pumpkintimer", 1, true) then
                 return
             end
-            if name:find("wall", 1, true) then wall = true end
+            if protectedGeometry[name] then keepGeometry = true end
             if debrisPosition and not debrisPart and parent:IsA("BasePart") then debrisPart = parent end
             parent = parent.Parent
         end
 
         if debrisPosition then
-            if not isEffect or not debrisPart or (debrisPart.Position - debrisPosition).Magnitude > 220 then return end
-        elseif wall and isPart and object.Transparency < 1 then
+            local position = isExplosion and object.Position or (debrisPart and debrisPart.Position)
+            if not (isEffect or isExplosion) or not position or (position - debrisPosition).Magnitude > 220 then return end
+        elseif not keepGeometry and isPart and object.Transparency < 1 then
             hideProperty(object, "LocalTransparencyModifier", 1)
-        elseif wall and isSurface then
+        elseif not keepGeometry and isSurface then
             hideProperty(object, "Transparency", 1)
         end
 
         if isEffect then hideProperty(object, "Enabled", false) end
         if isParticle then hideProperty(object, "Transparency", invisible) end
+        if isExplosion then hideProperty(object, "Visible", false) end
     end
 
     -- Quét hiệu ứng mới tải trong các thư mục của sự kiện.
@@ -579,17 +664,26 @@ do
             if next(original) then restore() end
             return
         end
-        local function scan(root, debrisPosition)
+        local function scan(root, hideScenery, debrisPosition)
             if not root then return end
             for _, object in ipairs(root:GetDescendants()) do
-                hideVisual(object, root, debrisPosition)
+                hideVisual(object, root, hideScenery, debrisPosition)
             end
         end
-        scan(instance.model)
-        scan(workspace:FindFirstChild("PumpkinTycoonIslands"))
+        scan(instance.model, true)
+        scan(workspace:FindFirstChild("PumpkinTycoonIslands"), true)
+        local plot = tycoon.Feature("Island").Plot()
+        scan(plot and plot:GetModel(), true)
         scan(workspace:FindFirstChild("PumpkinTycoonPumpkins"))
+        local things = workspace:FindFirstChild("__THINGS")
+        local breakerFolder = things and things:FindFirstChild("Breakables")
+        if breakerFolder then
+            for _, model in ipairs(breakerFolder:GetChildren()) do
+                if model:GetAttribute("ParentID") == instanceId then scan(model) end
+            end
+        end
         local character = player.Character
-        if character then scan(workspace:FindFirstChild("__DEBRIS"), character:GetPivot().Position) end
+        if character then scan(workspace:FindFirstChild("__DEBRIS"), false, character:GetPivot().Position) end
     end
 
     -- Chạy một vòng tối ưu riêng cho toggle Event.
