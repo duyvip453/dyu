@@ -56,7 +56,12 @@ local function getPress(pad)
     local touch = press:FindFirstChild("Touch")
     if not touch or not touch:IsA("BasePart") or not touch.CanTouch then return end
 
-    local hue, saturation, brightness = press.Color:ToHSV()
+    local color = press.Color
+    local hue, saturation, brightness = color:ToHSV()
+    -- Nhận cả xanh dương đã bị game pha tối khi render pad đặc biệt.
+    if hue >= 0.49 and hue <= 0.75 and color.B > color.R * 1.2 and color.B >= color.G then
+        return press, touch, false
+    end
     if hue >= 0.11 and hue <= 0.73 and saturation >= 0.35 and brightness >= 0.25 then
         return press, touch, hue < 0.25
     end
@@ -66,6 +71,8 @@ end
 local function findPad(folder, origin, retryAt)
     local now = os.clock()
     local bestPad, bestDistance
+    local starter = folder:FindFirstChild(tycoonTypes.ZONES[1].Section .. "_Zone")
+    if starter and now >= (retryAt[starter] or 0) and getPress(starter) then return starter end
     for _, pad in ipairs(folder:GetChildren()) do
         if now < (retryAt[pad] or 0) then continue end
         local press = getPress(pad)
@@ -216,8 +223,7 @@ end
 -- Tạm dừng mở pad trong lúc chuẩn bị đủ 15 trứng của zone.
 local function updateEvent(state, character, humanoid, root)
     local zone, slab, plotId, owned = getFarmZone()
-    if not owned or (zone and not slab) then return end
-    if zone then
+    if zone and slab then
         local egg
         local waitingForEgg = false
         if zone < lastZone and (hatchCounts[zone] or 0) < hatchGoal then
@@ -230,6 +236,9 @@ local function updateEvent(state, character, humanoid, root)
             if egg then hatchOne(state, zone, egg) end
             return
         end
+    elseif zone and zone < lastZone and (hatchCounts[zone] or 0) < hatchGoal
+        and buttons.Owned(owned, tycoonTypes.ZONES[zone].Section .. "_Egg") then
+        return
     end
 
     local folder = workspace:FindFirstChild("PumpkinTycoonPads")
@@ -361,6 +370,140 @@ features.EventAutoPumpkin = {
         if on then startWorker() end
     end,
 }
+
+-- Auto Buy Pumpkin / Mua bí ngô từ merchant trong Pumpkin Tycoon.
+do
+    local merchantData = require(library.Types.PumpkinTycoon.Merchant)
+    local buying = false
+    local buyJob
+
+    -- Chọn cấp cao nhất còn hàng mà số xu hiện tại mua được.
+    local function chooseBand(items, coins)
+        local config = merchantData.Config()
+        for index = #merchantData.BANDS, 1, -1 do
+            local band = merchantData.BANDS[index]
+            local offer = config[band]
+            if offer and (items[band] or 0) > 0 and coins >= offer.Price then
+                return band
+            end
+        end
+        return nil
+    end
+
+    -- Đọc lại quầy và sức chứa trước mỗi lần mua.
+    local function buyPumpkin()
+        if not isInEvent() then return 2 end
+        local merchant = tycoon.Feature("Merchant")
+        if not merchant.Enabled() or not merchant.Unlocked() then return 2 end
+        local island = tycoon.Feature("Island")
+        local plot = island.Plot()
+        if not plot then return 2 end
+
+        local stock = merchantData.CleanStock(island.Get(nil, tycoonTypes.VAR.Stock))
+        if #stock >= merchant.Slots() then return 2 end
+        local offers = merchantData.Clean(island.Get(nil, tycoonTypes.VAR.Merchant))
+        local coins = currency.Get(tycoonTypes.COIN)
+        if not offers or type(coins) ~= "number" then return 2 end
+        local band = chooseBand(offers.Items, coins)
+        if not band then return 2 end
+
+        local success = plot:Invoke(merchantData.VERB_BUY, band)
+        return success == true and 1 or 3
+    end
+
+    -- Giữ một vòng mua để tránh gửi trùng khi bật tắt nhanh.
+    features.EventAutoBuyPumpkin = {
+        duy = function(on)
+            buying = on
+            if not on or buyJob then return end
+            buyJob = task.defer(function()
+                while buying do
+                    local ok, delay = pcall(buyPumpkin)
+                    task.wait(ok and delay or 3)
+                end
+                buyJob = nil
+            end)
+        end,
+    }
+end
+
+-- Auto Pumpkin Upgrade / Nâng cấp các mục đã chọn trong máy.
+do
+    local definitions = require(library.Types.PumpkinTycoon.Upgrades)
+    local options, tracksByName = {}, {}
+    local selected = {}
+    local retryAt = {}
+    local upgrading = false
+    local upgradeJob
+
+    -- Lấy cả các mục mua được nằm ngoài danh sách hiển thị của máy.
+    local tracks = table.clone(definitions.TRACKS)
+    local extraTracks = {}
+    for track, row in pairs(definitions.ROWS) do
+        if #row.Powers > 0 and #row.Costs > 0 and not table.find(tracks, track) then
+            table.insert(extraTracks, track)
+        end
+    end
+    table.sort(extraTracks)
+    for _, track in ipairs(extraTracks) do table.insert(tracks, track) end
+
+    -- Dùng tên trong game cho dropdown và cấu hình launcher.
+    for _, track in ipairs(tracks) do
+        local name = definitions.ROWS[track].Name
+        table.insert(options, name)
+        tracksByName[name] = track
+    end
+
+    -- Tìm một cấp đã chọn mà ví Pumpkin Tokens trả được.
+    local function upgradeOne()
+        if not isInEvent() or not next(selected) then return end
+        local upgrades = tycoon.Feature("Upgrades")
+        if not upgrades.Enabled() or not upgrades.Unlocked() then return end
+        local plot = tycoon.Feature("Island").Plot()
+        if not plot then return end
+
+        local tokens = upgrades.Tokens()
+        local now = os.clock()
+        for _, track in ipairs(tracks) do
+            if not selected[track] or now < (retryAt[track] or 0) then continue end
+            local tier = upgrades.Tier(track)
+            if tier >= #definitions.ROWS[track].Powers or upgrades.Capped(track, tier) then continue end
+            local cost = upgrades.Cost(track, tier + 1)
+            if cost and tokens >= cost then
+                local success = plot:Invoke(upgrades.VERB_BUY, track)
+                if success ~= true then retryAt[track] = os.clock() + 5 end
+                return
+            end
+        end
+    end
+
+    -- Chỉ lưu các mục hợp lệ từ dropdown hoặc launcher.
+    local function setSelection(values)
+        table.clear(selected)
+        for _, name in ipairs(type(values) == "table" and values or {}) do
+            local track = tracksByName[name]
+            if track then selected[track] = true end
+        end
+    end
+
+    -- Giữ một vòng nâng cấp và đọc lại giá sau mỗi lượt.
+    features.EventAutoPumpkinUpgrade = {
+        getOptions = function() return table.clone(options) end,
+        setSelection = setSelection,
+        duy = function(on)
+            upgrading = on
+            if not on or upgradeJob then return end
+            upgradeJob = task.defer(function()
+                while upgrading do
+                    local ok, err = pcall(upgradeOne)
+                    if not ok then warn("[Auto Pumpkin Upgrade] " .. tostring(err)) end
+                    task.wait(ok and 1 or 3)
+                end
+                upgradeJob = nil
+            end)
+        end,
+    }
+end
 
 -- Optimize Event / Chỉ thay đổi hiển thị của Pumpkin Tycoon.
 do
