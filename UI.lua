@@ -10,9 +10,9 @@ if type(launchConfig) ~= "table" then launchConfig = nil end
 local launchToggles = launchConfig and type(launchConfig.toggles) == "table" and launchConfig.toggles or {}
 local startupActions = {}
 
--- Anti-AFK / Nhảy mỗi phút ngay khi script khởi động.
+-- Anti-AFK / Gửi phím Space mỗi phút.
 do
-    -- Dừng vòng nhảy của lần chạy trước.
+    -- Dừng vòng nhảy từ bản cũ.
     if environment.RobloxHubAntiAfkJob then
         pcall(task.cancel, environment.RobloxHubAntiAfkJob)
         environment.RobloxHubAntiAfkJob = nil
@@ -24,25 +24,63 @@ do
         environment.RobloxHubAntiAfkConnection = nil
     end
 
-    local player = game:GetService("Players").LocalPlayer
+    -- Gỡ kết nối theo dõi idle của lần chạy trước.
+    if environment.RobloxHubAntiAfkIdleConnection then
+        environment.RobloxHubAntiAfkIdleConnection:Disconnect()
+        environment.RobloxHubAntiAfkIdleConnection = nil
+    end
 
-    -- Chuyển Humanoid sang trạng thái nhảy bằng API dùng chung trên PC và mobile.
-    local function jump()
-        local character = player.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid.Health > 0 then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    -- Dừng đoạn exec thử nếu nó vẫn đang gửi phím.
+    if type(environment.StopAfkTest) == "function" then
+        environment.StopAfkTest()
+        environment.StopAfkTest = nil
+    end
+
+    local input = game:GetService("UserInputService")
+    local useNativeInput = type(keypress) == "function" and type(keyrelease) == "function"
+    local setSpace
+    if useNativeInput then
+        setSpace = function(down)
+            if down then keypress(0x20) else keyrelease(0x20) end
+        end
+    else
+        local ok, virtualInput = pcall(function() return input:CreateVirtualInput() end)
+        if ok and virtualInput then
+            setSpace = function(down)
+                virtualInput:SendKey(down, Enum.KeyCode.Space, false)
+            end
         end
     end
 
-    local nextJumpAt = os.clock() + 60
-    local runService = game:GetService("RunService")
-    environment.RobloxHubAntiAfkConnection = runService.Heartbeat:Connect(function()
-        local now = os.clock()
-        if now < nextJumpAt then return end
-        nextJumpAt = now + 60
-        jump()
-    end)
+    if setSpace then
+        local player = game:GetService("Players").LocalPlayer
+        -- Báo số giây Roblox vẫn tính là idle.
+        environment.RobloxHubAntiAfkIdleConnection = player.Idled:Connect(function(seconds)
+            warn(("[Anti-AFK] Roblox ghi nhận idle %ds."):format(math.floor(seconds)))
+        end)
+
+        local nextInputAt = os.clock() + 60
+        local runService = game:GetService("RunService")
+        -- Bỏ qua lượt gửi khi input đang được dùng ở nơi khác.
+        environment.RobloxHubAntiAfkConnection = runService.Heartbeat:Connect(function()
+            local now = os.clock()
+            if now < nextInputAt then return end
+            nextInputAt = now + 60
+
+            if input:GetFocusedTextBox() or (useNativeInput and type(isrbxactive) == "function" and not isrbxactive()) then
+                return
+            end
+
+            local ok, err = pcall(function()
+                setSpace(true)
+                task.wait(0.08)
+                setSpace(false)
+            end)
+            if not ok then warn("[Anti-AFK] Gửi Space lỗi: " .. tostring(err)) end
+        end)
+    else
+        warn("[Anti-AFK] Executor không có API gửi phím dùng được.")
+    end
 end
 
 -- 2. Tải các module tính năng
