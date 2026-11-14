@@ -169,8 +169,8 @@ end
 -- Tạo toggle mở map event.
 do
     createToggle(event, "auto open map event", "EventAutoOpenMap")
-       createToggle(event, "optimize event", "EventOptimize")
     createToggle(event, "auto pumpkin", "EventAutoPumpkin")
+    createToggle(event, "optimize event", "EventOptimize")
 end
 
 -- Tạo giao diện cho các tính năng farm.
