@@ -28,6 +28,7 @@ local hatchGoal = 15
 local hatchInterval = 1
 local hatchCounts = {}
 local enabled = false
+local pumpkinEnabled = false
 local workerRunning = false
 local generation = 0
 
@@ -240,7 +241,108 @@ local function updateEvent(state, character, humanoid, root)
     end
 end
 
--- Điều phối toggle Auto Open Map Event.
+-- Auto Pumpkin / Chỉ chọn bí ngô còn sống trên đảo của mình.
+local function findPumpkin(position)
+    local plot = tycoon.Feature("Island").Plot()
+    local target, distance
+    for _, breaker in pairs(plot and plot.Breakables or {}) do
+        if breaker.parentID ~= instanceId or not string.match(breaker.areaID or "", "^Pedestal_%d+$")
+            or breaker.health <= 0 or breaker.disableDamage
+            or not breaker.model or not breaker.model.Parent then continue end
+        local nextDistance = (breaker.position - position).Magnitude
+        if not distance or nextDistance < distance then
+            target, distance = breaker, nextDistance
+        end
+    end
+    return target
+end
+
+-- Lưu vị trí trước khi đứng cạnh bí ngô.
+local function attackPumpkin(target, character, humanoid, root)
+    local original = character:GetPivot()
+    local assigned = {}
+    local ok, err = pcall(function()
+        petCmds.EquipBest()
+        while pumpkinEnabled and isInEvent() and player.Character == character
+            and humanoid.Health > 0 and root.Parent == character do
+            local breaker = breakables.Get(target.uid)
+            if not breaker or breaker.health <= 0 or not breaker.model or not breaker.model.Parent then break end
+            if (root.Position - breaker.position).Magnitude > 8 then
+                local direction = root.Position - breaker.position
+                local flat = Vector3.new(direction.X, 0, direction.Z)
+                local offset = flat.Magnitude > 0.01 and flat.Unit * 4 or Vector3.new(4, 0, 0)
+                local height = root.Size.Y / 2 + humanoid.HipHeight + 0.5
+                local leg = humanoid.RigType == Enum.HumanoidRigType.R6 and character:FindFirstChild("Left Leg")
+                if leg then height += leg.Size.Y end
+                local rootOffset = root.CFrame:ToObjectSpace(character:GetPivot())
+                root.AssemblyLinearVelocity = Vector3.zero
+                character:PivotTo(CFrame.new(breaker.position + offset + Vector3.new(0, height, 0))
+                    * root.CFrame.Rotation * rootOffset)
+            end
+            local batch = {}
+            for _, pet in pairs(playerPet.GetByPlayer(player) or {}) do
+                if pet.euid then
+                    batch[pet.euid] = target.uid
+                    assigned[pet.euid] = true
+                end
+            end
+            if next(batch) then network.Fire("Breakables_JoinPetBulk", batch) end
+            network.UnreliableFire("Breakables_PlayerDealDamage", target.uid)
+            task.wait(0.25)
+        end
+    end)
+
+    -- Quay lại trước khi cho phép các vòng farm chạy tiếp.
+    local restored, restoreError = pcall(function()
+        if isInEvent() and player.Character == character and humanoid.Health > 0 and root.Parent == character then
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            character:PivotTo(original)
+        end
+        for _, pet in pairs(playerPet.GetByPlayer(player) or {}) do
+            if pet.euid and assigned[pet.euid] and pet:GetTargetType() == "Breakable"
+                and pet:GetTargetValue() == target.uid then
+                pet:ClearTarget()
+            end
+        end
+    end)
+    if not ok or not restored then warn("[Auto Pumpkin] " .. tostring(err or restoreError)) end
+end
+
+-- Điều phối chung để bí ngô và mở map không tranh vị trí.
+local function startWorker()
+    if workerRunning then return end
+    workerRunning = true
+
+    task.defer(function()
+        local state = { retryAt = setmetatable({}, { __mode = "k" }), nextFarm = 0, nextEquip = 0, nextHatch = 0 }
+        local nextEntryAt = 0
+        while enabled or pumpkinEnabled do
+            local character = player.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            local root = humanoid and humanoid.RootPart
+            if root and humanoid.Health > 0 then
+                if isInEvent() then
+                    local pumpkin = pumpkinEnabled and findPumpkin(root.Position)
+                    if pumpkin then
+                        attackPumpkin(pumpkin, character, humanoid, root)
+                    elseif enabled then
+                        local ok, err = pcall(updateEvent, state, character, humanoid, root)
+                        if not ok then
+                            warn("[Auto Open Map Event] " .. tostring(err))
+                            task.wait(retryDelay)
+                        end
+                    end
+                elseif enabled and os.clock() >= nextEntryAt then
+                    enterEvent()
+                    nextEntryAt = os.clock() + entryRetryDelay
+                end
+            end
+            task.wait(scanInterval)
+        end
+        workerRunning = false
+    end)
+end
 
 -- Quét riêng PumpkinTycoonPads để bỏ qua các nút thưởng trong PumpkinTycoonIslands.
 features.EventAutoOpenMap = {
@@ -248,33 +350,15 @@ features.EventAutoOpenMap = {
         if enabled == on then return end
         enabled = on
         generation += 1
-        if not on or workerRunning then return end
-        workerRunning = true
+        if on then startWorker() end
+    end,
+}
 
-        task.defer(function()
-            local state = { retryAt = setmetatable({}, { __mode = "k" }), nextFarm = 0, nextEquip = 0, nextHatch = 0 }
-            local nextEntryAt = 0
-            while enabled do
-                local now = os.clock()
-                local character = player.Character
-                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-                local root = humanoid and humanoid.RootPart
-                if root and humanoid.Health > 0 then
-                    if isInEvent() then
-                        local ok, err = pcall(updateEvent, state, character, humanoid, root)
-                        if not ok then
-                            warn("[Auto Open Map Event] " .. tostring(err))
-                            task.wait(retryDelay)
-                        end
-                    elseif now >= nextEntryAt then
-                        enterEvent()
-                        nextEntryAt = os.clock() + entryRetryDelay
-                    end
-                end
-                task.wait(scanInterval)
-            end
-            workerRunning = false
-        end)
+-- Bật ưu tiên đánh bí ngô trong sự kiện.
+features.EventAutoPumpkin = {
+    duy = function(on)
+        pumpkinEnabled = on
+        if on then startWorker() end
     end,
 }
 
