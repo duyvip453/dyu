@@ -621,9 +621,9 @@ features.RankStatsGui = {
         local rewardsLabel = statsLabel(background, 0.23, 0.07, 26, muted)
         local onlineLabel = statsLabel(background, 0.30, 0.04, 20, muted)
         onlineLabel.Text = onlineTimeText()
-        statsLabel(background, 0.34, 0.05, 22, accent).Text = "QUEST ĐANG LÀM"
+        statsLabel(background, 0.34, 0.05, 22, accent).Text = "đang làm nhìn lon"
         local activeLabel = statsLabel(background, 0.40, 0.12, 32, white)
-        statsLabel(background, 0.57, 0.05, 22, accent).Text = "NHIỆM VỤ HIỆN TẠI"
+        statsLabel(background, 0.57, 0.05, 22, accent).Text = "nhiệm vụ nè:"
         local rows = {}
         for i = 1, #questTiers do
             rows[i] = statsLabel(background, 0.63 + (i - 1) * 0.07, 0.065, 23, white)
@@ -645,7 +645,7 @@ features.RankStatsGui = {
                 if current and goal and goal.UID == current.uid then
                     activeLabel.Text = ("%s\n%d/%d"):format(current.title, goal.Progress, goal.Amount)
                 else
-                    activeLabel.Text = questJob and "Đang chờ nhiệm vụ phù hợp" or "Auto rank quest đang tắt"
+                    activeLabel.Text = questJob and "Đợi bố m tí" or "Auto rank quest đang tắt"
                 end
 
                 for index, label in ipairs(rows) do
