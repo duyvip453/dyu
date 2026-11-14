@@ -172,6 +172,7 @@ do
     createToggle(event, "auto pumpkin", "EventAutoPumpkin")
     createToggle(event, "auto buy pumkin", "EventAutoBuyPumpkin")
     createToggle(event, "optimize event", "EventOptimize")
+    createToggle(event, "fast farm event", "EventFastFarm")
 
     -- Chọn các mục nâng cấp Pumpkin Tycoon.
     local upgrade = features.EventAutoPumpkinUpgrade
