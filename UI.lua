@@ -92,6 +92,7 @@ local urls = {
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/optimize.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/mail.lua",
     "https://raw.githubusercontent.com/duyvip453/dyu/main/webhook.lua",
+    "https://raw.githubusercontent.com/duyvip453/dyu/refs/heads/main/event.lua",
 }
 
 -- Gộp tính năng từ các module theo tên flag.
@@ -131,7 +132,7 @@ local window = Rayfield:CreateWindow({
 window:CreateTab({ name = "Stats" })
 local farm = window:CreateTab({ name = "farm" })
 local optimize = window:CreateTab({ name = "optimize" })
-window:CreateTab({ name = "Event" })
+local event = window:CreateTab({ name = "Event" })
 local mail = window:CreateTab({ name = "mail" })
 local trading = window:CreateTab({ name = "trading" })
 local rank = window:CreateTab({ name = "rank" })
@@ -140,6 +141,7 @@ local webhook = window:CreateTab({ name = "webhook" })
 window:CreateTab({ name = "setting" })
 
 -- 4. Hàm tạo toggle dùng chung
+-- Launcher bật toggle qua RobloxHubConfig.toggles[flag] = true.
 -- Nối toggle Rayfield với tính năng cùng flag.
 local function createToggle(tab, name, flag)
     local initial = launchToggles[flag] == true
@@ -163,6 +165,11 @@ local function createToggle(tab, name, flag)
 end
 
 -- 5. Cấu hình các tab
+
+-- Tạo toggle mở map event.
+do
+    createToggle(event, "auto open map event", "EventAutoOpenMap")
+end
 
 -- Tạo giao diện cho các tính năng farm.
 do
